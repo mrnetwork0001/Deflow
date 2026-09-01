@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { EquityCurve } from "@/components/EquityCurve";
 import { EventStream } from "@/components/EventStream";
-import { Mark } from "@/components/site/chrome";
+import { Wordmark } from "@/components/site/chrome";
 import { PositionsTable } from "@/components/PositionsTable";
 import { Refusals } from "@/components/Refusals";
 import { RegimeGrid } from "@/components/RegimeGrid";
@@ -83,15 +83,10 @@ export default function Dashboard() {
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {/* The wordmark is the way back to the marketing site, which is where
             people expect a logo to take them. */}
-        <Link href="/" className="group flex items-center gap-2.5" aria-label="Deflow home">
-          <Mark size={26} />
-          <span className="flex items-baseline gap-3">
-            <span className="text-lg font-bold tracking-tight text-gain transition-opacity group-hover:opacity-80">
-              DEFLOW
-            </span>
-            <span className="hidden text-[11px] text-muted sm:inline">
-              autonomous multi-agent options desk
-            </span>
+        <Link href="/" className="group flex items-center gap-4" aria-label="Deflow home">
+          <Wordmark height={30} className="transition-opacity group-hover:opacity-80" />
+          <span className="hidden border-l border-ink-line pl-4 font-mono text-[11px] text-muted lg:inline">
+            live desk
           </span>
         </Link>
         <div className="flex flex-wrap items-center gap-2">

@@ -2,19 +2,16 @@
 
 import Link from "next/link";
 import { LedgerViewer } from "@/components/LedgerViewer";
-import { Mark } from "@/components/site/chrome";
+import { Wordmark } from "@/components/site/chrome";
 
 export default function LedgerPage() {
   return (
     <main className="mx-auto max-w-[1400px] p-4 sm:p-6">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/" className="group flex items-center gap-2.5" aria-label="Deflow home">
-          <Mark size={26} />
-          <span className="flex items-baseline gap-3">
-            <span className="font-mono text-lg font-bold tracking-tight text-gain transition-opacity group-hover:opacity-80">
-              DEFLOW
-            </span>
-            <span className="hidden font-mono text-[11px] text-muted sm:inline">decision ledger</span>
+        <Link href="/" className="group flex items-center gap-4" aria-label="Deflow home">
+          <Wordmark height={30} className="transition-opacity group-hover:opacity-80" />
+          <span className="hidden border-l border-ink-line pl-4 font-mono text-[11px] text-muted sm:inline">
+            decision ledger
           </span>
         </Link>
         <nav className="flex items-center gap-2">

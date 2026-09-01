@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ButtonLink, GITHUB_URL, Mark } from "./chrome";
+import { ButtonLink, GITHUB_URL, Mark, Wordmark } from "./chrome";
 
 export function CTA() {
   return (
@@ -58,10 +58,7 @@ export function Footer() {
       <div className="mx-auto max-w-content">
         <div className="grid gap-10 lg:grid-cols-[1.6fr_repeat(3,1fr)]">
           <div className="max-w-sm">
-            <div className="flex items-center gap-2.5">
-              <Mark size={24} />
-              <span className="font-mono text-[13px] font-bold text-body">DEFLOW</span>
-            </div>
+            <Wordmark height={34} />
             <p className="mt-4 font-sans text-[12.5px] leading-[1.7] text-muted">
               An autonomous multi-agent options desk on Alpaca paper trading, built for the
               lablab.ai × Alpaca AI Trading Agents Hackathon.

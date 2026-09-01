@@ -5,14 +5,41 @@ import React, { useEffect, useState } from "react";
 
 export const GITHUB_URL = "https://github.com/mrnetwork0001/Deflow";
 
-/** Wordmark: a capped payoff diagram — flat, ramp, flat. The thesis in 24px. */
+/** The icon mark alone — a capped payoff diagram in a rounded square. */
 export function Mark({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden>
-      <rect x="0.6" y="0.6" width="26.8" height="26.8" rx="7" fill="#0e1013" stroke="#1e2229" />
-      <path d="M5 19h5l7-10h6" stroke="#00e08a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5 19h5" stroke="#ff5a5a" strokeWidth="2" strokeLinecap="round" />
-    </svg>
+    // Plain <img>, not next/image: this is a static export with
+    // images.unoptimized, so the loader would add machinery for no benefit.
+    <img
+      src="/icon-192.png"
+      alt=""
+      width={size}
+      height={size}
+      aria-hidden
+      className="select-none"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
+/**
+ * Full lockup: mark, rule, DEFLOW, and the tagline beneath it.
+ *
+ * Served as a transparent PNG at 2× so it stays crisp on retina. The source
+ * artwork ships on a solid black matte, which would read as a dark rectangle
+ * against the page, so the matte is keyed out by luminance at build time --
+ * that preserves the antialiased stroke edges rather than cutting a hard,
+ * jagged silhouette.
+ */
+export function Wordmark({ height = 30, className = "" }: { height?: number; className?: string }) {
+  return (
+    <img
+      src="/deflow-header.png"
+      srcSet="/deflow-header.png 1x, /deflow-header@2x.png 2x"
+      alt="Deflow — autonomy, with limits."
+      className={`select-none ${className}`}
+      style={{ height, width: "auto" }}
+    />
   );
 }
 
@@ -39,9 +66,8 @@ export function Nav() {
       }`}
     >
       <div className="mx-auto flex max-w-content items-center justify-between px-6 py-3.5">
-        <Link href="/" className="group flex items-center gap-2.5">
-          <Mark size={26} />
-          <span className="font-mono text-[13px] font-bold tracking-tight text-body">DEFLOW</span>
+        <Link href="/" className="group flex items-center" aria-label="Deflow home">
+          <Wordmark height={30} className="transition-opacity group-hover:opacity-80" />
         </Link>
 
         <div className="hidden items-center gap-8 lg:flex">
