@@ -45,14 +45,6 @@ export function Wordmark({ height = 30, className = "" }: { height?: number; cla
   );
 }
 
-const NAV = [
-  ["The problem", "#problem"],
-  ["The edge", "#edge"],
-  ["The desk", "#desk"],
-  ["Risk gate", "#gate"],
-  ["Auditability", "#audit"],
-];
-
 export function Nav() {
   const [solid, setSolid] = useState(false);
   useEffect(() => {
@@ -73,23 +65,23 @@ export function Nav() {
           <Wordmark height={30} className="transition-opacity group-hover:opacity-80" />
         </Link>
 
-        <div className="hidden items-center gap-8 lg:flex">
-          {NAV.map(([label, href]) => (
-            <a key={href} href={href} className="underline-grow text-[13px] text-muted transition-colors hover:text-body">
-              {label}
-            </a>
-          ))}
-        </div>
-
         {/* Deliberately just the Ledger here: the hero and closing sections
             carry the launch and GitHub calls-to-action, and duplicating them
             in the nav crowded the header. */}
-        <Link
-          href="/ledger/"
-          className="rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body"
-        >
-          Ledger
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/docs/"
+            className="rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body"
+          >
+            Docs
+          </Link>
+          <Link
+            href="/ledger/"
+            className="rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body"
+          >
+            Ledger
+          </Link>
+        </div>
       </div>
     </nav>
   );
