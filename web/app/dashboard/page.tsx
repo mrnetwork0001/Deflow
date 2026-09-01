@@ -14,6 +14,39 @@ import {
   AnalystView, Position, Status, getJSON, money, postJSON, pct, signedMoney, signedPct,
 } from "@/lib/api";
 
+function BigStat({
+  label, value, sub, tone = "body",
+}: { label: string; value: string | null; sub?: string; tone?: "body" | "gain" | "loss" }) {
+  const tones = { body: "text-body", gain: "text-gain", loss: "text-loss" };
+  return (
+    <div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">{label}</div>
+      {/* A missing figure renders as an em dash, never as zero. This dashboard
+          is the public face of a system whose argument is that unverified
+          numbers are the enemy; showing $0.00 while data loads would be one. */}
+      <div className={`tabular mt-2 font-mono text-[30px] font-bold leading-none ${value ? tones[tone] : "text-faint"}`}>
+        {value ?? "—"}
+      </div>
+      {sub && <div className="mt-2 font-mono text-[11px] text-muted">{sub}</div>}
+    </div>
+  );
+}
+
+function SmallStat({
+  label, value, sub, tone = "body",
+}: { label: string; value: string | null; sub?: string; tone?: "body" | "gain" | "loss" }) {
+  const tones = { body: "text-body", gain: "text-gain", loss: "text-loss" };
+  return (
+    <div>
+      <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">{label}</dt>
+      <dd className={`tabular mt-1.5 font-mono text-[15px] font-semibold ${value ? tones[tone] : "text-faint"}`}>
+        {value ?? "—"}
+      </dd>
+      {sub && <dd className="mt-0.5 font-mono text-[10px] text-faint">{sub}</dd>}
+    </div>
+  );
+}
+
 function StatusItem({ dot, label, title }: { dot: string; label: string; title: string }) {
   return (
     <span
@@ -165,36 +198,73 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* ---- Headline P&L ---------------------------------------------- */}
-      <Panel title="Account" className="mb-4">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="Equity" value={money(perf?.equity ?? 0)} sub={`from ${money(perf?.starting_equity ?? 0, 0)}`} />
-          <Stat
-            label="Total P&L"
-            value={signedMoney(perf?.total_pnl ?? 0)}
-            tone={(perf?.total_pnl ?? 0) >= 0 ? "gain" : "loss"}
-            sub={signedPct(perf?.return_pct ?? 0)}
-          />
-          <Stat label="Realised" value={signedMoney(perf?.realized_pnl ?? 0)} tone={(perf?.realized_pnl ?? 0) >= 0 ? "gain" : "loss"} />
-          <Stat label="Unrealised" value={signedMoney(perf?.unrealized_pnl ?? 0)} tone={(perf?.unrealized_pnl ?? 0) >= 0 ? "gain" : "loss"} />
-          <Stat
-            label="Win rate"
-            value={perf?.closed_positions ? pct(perf.win_rate, 0) : "—"}
-            sub={perf?.closed_positions ? `${perf.wins}W / ${perf.losses}L · PF ${perf.profit_factor ?? "n/a"}` : "no closed trades yet"}
-          />
-          <Stat label="Book delta" value={(perf?.net_delta ?? 0).toFixed(3)} sub={`vega ${(perf?.net_vega ?? 0).toFixed(1)}`} />
+      {/* ---- Account ----------------------------------------------------
+          Equity and P&L are the two numbers anyone opens this page for, so
+          they are set larger than the rest rather than sharing a six-column
+          grid with book delta. */}
+      <Panel
+        title="Account"
+        right={
+          perf ? (
+            <span className="tabular font-mono text-[10px] text-faint">
+              {perf.closed_positions} closed · {perf.open_positions} open
+            </span>
+          ) : null
+        }
+        className="mb-4"
+      >
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
+          <div className="grid grid-cols-2 gap-6">
+            <BigStat
+              label="Equity"
+              value={perf ? money(perf.equity) : null}
+              sub={perf ? `from ${money(perf.starting_equity, 0)}` : "waiting for the desk"}
+            />
+            <BigStat
+              label="Total P&L"
+              value={perf ? signedMoney(perf.total_pnl) : null}
+              tone={perf ? (perf.total_pnl >= 0 ? "gain" : "loss") : "body"}
+              sub={perf ? signedPct(perf.return_pct) : "—"}
+            />
+          </div>
+
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+            <SmallStat label="Realised" value={perf ? signedMoney(perf.realized_pnl) : null}
+                       tone={perf && perf.realized_pnl < 0 ? "loss" : "gain"} />
+            <SmallStat label="Unrealised" value={perf ? signedMoney(perf.unrealized_pnl) : null}
+                       tone={perf && perf.unrealized_pnl < 0 ? "loss" : "gain"} />
+            <SmallStat
+              label="Win rate"
+              // A win rate over zero closed trades is not 0%, it is undefined.
+              value={perf?.closed_positions ? pct(perf.win_rate, 0) : null}
+              sub={perf?.closed_positions ? `${perf.wins}W / ${perf.losses}L` : "no closed trades"}
+            />
+            <SmallStat label="Book delta" value={perf ? perf.net_delta.toFixed(3) : null}
+                       sub={perf ? `vega ${perf.net_vega.toFixed(1)}` : undefined} />
+          </dl>
         </div>
 
         {/* Capital at risk against the 6% aggregate ceiling. */}
-        <div className="mt-4 border-t border-ink-line pt-3">
-          <div className="mb-1.5 flex items-baseline justify-between text-[10px]">
-            <span className="text-muted">capital at risk</span>
-            <span className="tabular text-body">
-              {money(perf?.capital_at_risk ?? 0, 0)} · {(perf?.capital_at_risk_pct ?? 0).toFixed(2)}% of{" "}
-              {((envelope.max_aggregate_risk_pct ?? 0.06) * 100).toFixed(0)}% ceiling
+        <div className="mt-6 border-t border-ink-line pt-4">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 font-mono text-[10px]">
+            <span className="uppercase tracking-[0.12em] text-faint">capital at risk</span>
+            <span className="tabular text-muted">
+              {perf ? (
+                <>
+                  <span className="text-body">{money(perf.capital_at_risk, 0)}</span>
+                  {" · "}
+                  {perf.capital_at_risk_pct.toFixed(2)}% of{" "}
+                  {((envelope.max_aggregate_risk_pct ?? 0.06) * 100).toFixed(0)}% ceiling
+                </>
+              ) : (
+                "—"
+              )}
             </span>
           </div>
-          <Meter value={perf?.capital_at_risk_pct ?? 0} max={(envelope.max_aggregate_risk_pct ?? 0.06) * 100} />
+          <Meter
+            value={perf?.capital_at_risk_pct ?? 0}
+            max={(envelope.max_aggregate_risk_pct ?? 0.06) * 100}
+          />
         </div>
       </Panel>
 
@@ -214,6 +284,8 @@ export default function Dashboard() {
           open={positions.open}
           closed={positions.closed}
           working={status?.working_orders ?? []}
+          loaded={status !== null}
+          stale={Boolean(error) && status !== null}
         />
         <EventStream />
       </div>

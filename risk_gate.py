@@ -533,6 +533,10 @@ class DeterministicRiskGate:
             "max_delta_exposure": MAX_DELTA_EXPOSURE,
             "max_portfolio_net_delta": MAX_PORTFOLIO_NET_DELTA,
             "min_probability_of_profit": MIN_PROBABILITY_OF_PROFIT,
+            # Breaker 4 applies a different rule to debit structures, and a
+            # dashboard that publishes only the credit floor has to guess or
+            # mislabel. Publish both.
+            "min_probability_of_profit_debit": MIN_PROBABILITY_OF_PROFIT_DEBIT,
             "max_open_positions": MAX_OPEN_POSITIONS,
             "dte_window": [MIN_DTE, MAX_DTE],
             "min_reward_risk_debit": MIN_REWARD_RISK_DEBIT,
