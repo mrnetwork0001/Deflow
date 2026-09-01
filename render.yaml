@@ -1,0 +1,35 @@
+# Render deployment (Blueprint).
+#
+#   1. Push this repo to GitHub.
+#   2. Render dashboard -> New -> Blueprint -> pick the repo.
+#   3. Set the three secrets when prompted.
+#
+# Note the disk: without it the hash-chained ledger is wiped on every deploy,
+# and the ledger is what makes the P&L checkable.
+
+services:
+  - type: web
+    name: deflow
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter          # free tier sleeps on idle, which stops the desk trading
+    region: ohio
+    healthCheckPath: /api/health
+    # One instance only. A second replica shares no disk, appends to its own
+    # ledger, and submits the same orders twice.
+    numInstances: 1
+    disk:
+      name: deflow-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: DEFLOW_HOST
+        value: 0.0.0.0
+      - key: DEFLOW_CYCLE_SECONDS
+        value: "300"
+      - key: ALPACA_API_KEY
+        sync: false        # set in the dashboard; never committed
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: FEATHERLESS_API_KEY
+        sync: false

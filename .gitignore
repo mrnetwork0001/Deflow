@@ -29,5 +29,8 @@ web/node_modules/
 # clone with no Node toolchain. Remove the negation to build it locally instead.
 !web/out/
 
+# Local container volume mount
+data-docker/
+
 # OS
 .DS_Store

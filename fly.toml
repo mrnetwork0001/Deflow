@@ -1,0 +1,51 @@
+# Fly.io deployment.
+#
+#   fly launch --no-deploy --copy-config
+#   fly volumes create deflow_data --size 1 --region iad
+#   fly secrets set ALPACA_API_KEY=... ALPACA_SECRET_KEY=... FEATHERLESS_API_KEY=...
+#   fly deploy
+#
+# Region iad (Virginia) sits next to the US exchanges, which keeps the quote
+# round-trip short. It matters less than it sounds -- the desk trades on a
+# 5-minute cycle, not on latency -- but there is no reason to be far away.
+
+app = "deflow"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DEFLOW_HOST = "0.0.0.0"
+  PORT = "8000"
+  DEFLOW_CYCLE_SECONDS = "300"
+
+[[mounts]]
+  source = "deflow_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # The desk must keep trading with nobody watching, so it never scales to
+  # zero -- and never past one, because a second replica would append to the
+  # same ledger and duplicate every order.
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 150
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "60s"
+  method = "GET"
+  path = "/api/health"
+  timeout = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -1,0 +1,24 @@
+# Local container run, closest thing to what production does.
+#
+#   docker compose up --build          # reads .env for secrets
+#
+services:
+  deflow:
+    build: .
+    ports:
+      - "8090:8000"
+    env_file:
+      - .env
+    environment:
+      DEFLOW_HOST: 0.0.0.0
+      # DEFLOW_PORT is pinned here on purpose. `env_file` loads the local .env,
+      # which carries a developer's own DEFLOW_PORT, and that correctly
+      # outranks $PORT -- so without this the container binds whatever port the
+      # laptop happened to use and the published mapping silently points at
+      # nothing. Values under `environment` win over `env_file`.
+      DEFLOW_PORT: "8000"
+      PORT: "8000"
+    volumes:
+      # The ledger and position book survive container rebuilds.
+      - ./data:/app/data
+    restart: unless-stopped

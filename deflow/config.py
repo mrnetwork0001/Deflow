@@ -119,8 +119,13 @@ class Settings:
         ]
     )
     cycle_seconds: int = field(default_factory=lambda: _int("DEFLOW_CYCLE_SECONDS", 300))
+    # Container platforms bind the world, not loopback, and inject the port as
+    # $PORT. Defaults stay loopback/8000 so a laptop run is not silently
+    # exposed to the local network.
     api_host: str = field(default_factory=lambda: _env("DEFLOW_HOST", default="127.0.0.1"))
-    api_port: int = field(default_factory=lambda: _int("DEFLOW_PORT", 8000))
+    api_port: int = field(
+        default_factory=lambda: _int("DEFLOW_PORT", 0) or _int("PORT", 0) or 8000
+    )
 
     # --- Risk envelope (mirrored into risk_gate.py constants) ---------------
     starting_equity: float = field(default_factory=lambda: _float("DEFLOW_STARTING_EQUITY", 100_000.0))

@@ -1,0 +1,30 @@
+# Secrets must never enter an image layer.
+.env
+.env.*
+!.env.example
+
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+
+# The dashboard's committed static export (web/out) IS needed. Its sources and
+# node_modules are not — the image never runs a Node build.
+web/node_modules
+web/.next
+web/app
+web/components
+web/lib
+web/*.json
+web/*.mjs
+web/*.ts
+
+# Runtime state belongs on the mounted volume, not baked into the image.
+data/*.jsonl
+data/*.json
+
+*.md
+!README.md
+tests
