@@ -27,5 +27,12 @@ systemctl restart deflow
 sleep 4
 systemctl is-active --quiet deflow && echo "    deflow is running" || { journalctl -u deflow -n 40 --no-pager; exit 1; }
 
-curl -fsS localhost:8000/api/health && echo
-curl -fsS localhost:8000/api/ledger/verify && echo
+# Read the port the desk was actually installed on. Hardcoding 8000 meant this
+# health check queried whatever else happened to own that port -- on a shared
+# host that is someone else's service answering "ok", which is worse than no
+# check at all.
+PORT=$(grep -E '^DEFLOW_PORT=' "$APP_DIR/.env" | tail -1 | cut -d= -f2 | tr -d ' "')
+PORT="${PORT:-8000}"
+echo "==> Health on 127.0.0.1:${PORT}"
+curl -fsS "127.0.0.1:${PORT}/api/health" && echo
+curl -fsS "127.0.0.1:${PORT}/api/ledger/verify" && echo
