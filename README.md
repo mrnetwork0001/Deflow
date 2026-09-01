@@ -135,7 +135,7 @@ accumulated it switches to the real implied-vol history and reports `basis="iv_h
                                                │
                     ╔══════════════════════════▼═══════════════════════╗
                     ║   DETERMINISTIC RISK GATE — risk_gate.py         ║
-                    ║   12 breakers · zero LLM · ~1.3 µs · fail-closed ║
+                    ║   12 breakers · zero LLM · microseconds · fail-closed ║
                     ╚══════════════════════════┬═══════════════════════╝
                                                │  approved + sized
                           ┌────────────────────▼─────────────────────┐
@@ -202,8 +202,8 @@ python risk_gate.py       # five adversarial cases + a latency benchmark
  Latency: 1.27 µs mean over 50,000 evaluations (786,647/sec)
 ```
 
-The gate is cheap enough that bypassing it is never a temptation. That figure is measured on
-your machine by the command above, not quoted from ours.
+Cheap enough that bypassing it is never a temptation. That figure is whatever your own machine
+prints — hardware varies, so the benchmark ships rather than the number.
 
 ---
 

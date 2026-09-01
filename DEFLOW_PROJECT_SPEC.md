@@ -105,7 +105,8 @@ probability 0.12, DTE fit 0.07, delta fit 0.04, conviction 0.03.
 - **No short-circuit** — all twelve run, so the audit trail is complete.
 - **The gate sizes the trade** — `max_contracts()` derives size from breakers 2, 5 and 6.
 - **Runs twice** — in the pipeline and again inside the executor.
-- **~1.3 µs** per evaluation, reproducible via `python risk_gate.py`.
+- **~1.3 µs** per evaluation on an M-series laptop, ~4.6 µs on a small cloud VM;
+  `python risk_gate.py` prints the figure for the machine it runs on.
 
 Exit guard (never model-consulted): −50% of max loss, +75% of max profit, forced close ≤ 3 DTE.
 

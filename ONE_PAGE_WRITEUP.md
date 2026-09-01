@@ -84,8 +84,9 @@ Four properties are enforced by construction:
 4. **It runs twice** — in the pipeline, and again inside the execution agent on the exact
    proposal being sent, so no refactor or retry can route an unapproved order.
 
-Measured at **1.3 µs** per full twelve-breaker evaluation (~750,000/sec), reproducible on any
-machine via `python risk_gate.py`. Cheap enough that bypassing it is never a temptation.
+Measured at **1.3 µs** per full twelve-breaker evaluation on an M-series laptop and **4.6 µs**
+on a small cloud VM. `python risk_gate.py` prints the figure for whatever machine it runs on —
+the benchmark is the claim. Cheap enough that bypassing it is never a temptation.
 
 Every decision — each analyst view, proposal, audit, verdict, order and exit — is appended to a
 **SHA-256 hash-chained ledger**. Modifying or deleting any historical entry breaks the chain and

@@ -55,8 +55,8 @@ export function Gate() {
     <Section
       id="gate"
       eyebrow="The risk gate"
-      title="Twelve breakers. No network, no prompt, 1.3 microseconds."
-      lead="risk_gate.py imports nothing but the standard library. Given the same proposal and the same book it returns the same verdict, forever. It fails closed on anything malformed, runs all twelve even after one fails so the audit trail stays complete, and has no code path that can widen a limit or increase a size."
+      title="Twelve breakers. No network, no prompt, microseconds."
+      lead="Single-digit microseconds per evaluation — the button below reports the real figure from this machine. risk_gate.py imports nothing but the standard library. Given the same proposal and the same book it returns the same verdict, forever. It fails closed on anything malformed, runs all twelve even after one fails so the audit trail stays complete, and has no code path that can widen a limit or increase a size."
       center
     >
       <div className="mb-6 flex flex-wrap items-center justify-center gap-3">

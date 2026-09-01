@@ -111,7 +111,7 @@ An autonomous options desk that trades the variance risk premium — the gap bet
 the volatility options are priced at and the volatility stocks actually deliver.
 
 ✅ 4 agents: analyst → structurer → adversarial auditor → executor
-✅ 12 deterministic circuit breakers, zero LLM, 1.3 µs, fail-closed
+✅ 12 deterministic circuit breakers, zero LLM, microseconds, fail-closed
 ✅ Alpaca Trading API + official CLI (mleg orders) + FastMCP server
 ✅ Every decision hash-chained and independently verifiable
 ✅ Refusals logged as loudly as fills

@@ -70,7 +70,7 @@ function HeroStats({ status }: { status: Status | null }) {
 
   const items: [string, string, string][] = [
     ["Circuit breakers", "12", "zero-LLM, fail-closed"],
-    ["Gate latency", "1.3 µs", "reproducible benchmark"],
+    ["Gate latency", "microseconds", "run risk_gate.py to measure"],
     ["Defined risk", "100%", "no naked options, ever"],
     [
       "Decisions logged",

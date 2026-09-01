@@ -28,7 +28,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from .config import SETTINGS, Settings
+from .config import ROOT, SETTINGS, Settings
 
 log = logging.getLogger("deflow.mcp")
 
@@ -67,6 +67,13 @@ class AlpacaMCPClient:
     def _command(self) -> Optional[List[str]]:
         if self.settings.mcp_command:
             return self.settings.mcp_command.split()
+        # uv is installed privately alongside the application by the deployment
+        # script, for the same reason the Alpaca CLI is: not shadowing a system
+        # binary on a shared host. That directory is not on PATH for a manual
+        # invocation, so look there before giving up.
+        local_uvx = ROOT / "bin" / "uvx"
+        if local_uvx.exists() and os.access(local_uvx, os.X_OK):
+            return [str(local_uvx), "--with", "fastmcp>=3.1,<4", "alpaca-mcp-server"]
         if shutil.which("uvx"):
             # The fastmcp pin is load-bearing. alpaca-mcp-server 2.3.0 declares
             # `fastmcp>=3.1.0` with no upper bound, so a fresh `uvx

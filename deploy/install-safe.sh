@@ -167,8 +167,17 @@ if command -v uv &>/dev/null; then
 elif [[ -x "$APP_DIR/bin/uv" ]]; then
   skip "already present"
 else
-  curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$APP_DIR/bin" sh >/dev/null 2>&1 || \
-    warn "uv install failed — MCP discovery will be unavailable, trading is unaffected"
+  # Redirecting this to /dev/null hid a failure: the step printed nothing and
+  # looked like success, and the missing MCP server only surfaced later in
+  # --check. Verify the binary actually landed.
+  curl -LsSf https://astral.sh/uv/install.sh \
+    | env UV_INSTALL_DIR="$APP_DIR/bin" UV_NO_MODIFY_PATH=1 sh 2>&1 | tail -3 || true
+  if [[ -x "$APP_DIR/bin/uvx" ]]; then
+    skip "uv installed at $APP_DIR/bin ($("$APP_DIR/bin/uv" --version 2>/dev/null))"
+  else
+    warn "uv did not install — the MCP server will be unavailable."
+    warn "Trading is unaffected: orders route through the Alpaca CLI."
+  fi
 fi
 
 # ---------------------------------------------------------------------------

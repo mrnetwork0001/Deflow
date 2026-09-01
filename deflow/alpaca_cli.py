@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from .config import SETTINGS, Settings
+from .config import ROOT, SETTINGS, Settings
 
 log = logging.getLogger("deflow.cli")
 
@@ -80,12 +80,23 @@ class AlpacaCLI:
 
     @staticmethod
     def _resolve_binary(preferred: str) -> Optional[str]:
-        """Find the `alpaca` binary, including the GOPATH location that
-        `go install` uses but that a GUI-launched shell often omits from PATH."""
+        """Find the `alpaca` binary.
+
+        PATH alone is not enough. The deployment installs the CLI privately
+        into the project's own `bin/` -- deliberately, so it cannot shadow a
+        system binary on a shared host -- and that directory is on PATH only
+        for the systemd unit. Anyone running a command by hand, `--check`
+        included, would otherwise be told the CLI is missing while it sits
+        beside the code. `go install` has the same problem with GOPATH, which
+        a GUI-launched shell routinely omits.
+        """
         found = shutil.which(preferred)
         if found:
             return found
+
         candidates = [
+            # Installed by deploy/install-safe.sh, next to the application.
+            ROOT / "bin" / "alpaca",
             Path.home() / "go" / "bin" / "alpaca",
             Path("/opt/homebrew/bin/alpaca"),
             Path("/usr/local/bin/alpaca"),
