@@ -203,9 +203,17 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
                 # existed. A fresh hackathon account is hours old, so most of a
                 # 1W window is zeros -- charted naively that is a $100,000
                 # cliff at the origin and a P&L line pinned at -100%.
+                if len(stamps) != len(equity):
+                    # zip() would silently truncate to the shorter list and the
+                    # curve would simply be missing its tail with no indication.
+                    log.warning(
+                        "Portfolio history arrays disagree (%d timestamps, %d equity values); "
+                        "charting the overlap only",
+                        len(stamps), len(equity),
+                    )
                 points = [
                     {"t": int(t), "equity": float(e)}
-                    for t, e in zip(stamps, equity)
+                    for t, e in zip(stamps, equity, strict=False)
                     if e is not None and float(e) > 0.0
                 ]
                 if points:
