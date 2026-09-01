@@ -42,7 +42,12 @@ rm -f /tmp/deflow.service.new
 
 echo "==> Restarting"
 systemctl restart deflow
-sleep 4
+# Give the socket time to bind. The first trading cycle runs in the scheduler
+# thread after the port is open, so this waits on the listener, not the cycle.
+for _ in $(seq 1 20); do
+  ss -ltn 2>/dev/null | grep -q "127.0.0.1:${PORT_NOW} " && break
+  sleep 1
+done
 systemctl is-active --quiet deflow && echo "    deflow is running" || { journalctl -u deflow -n 40 --no-pager; exit 1; }
 
 # Read the port the desk was actually installed on. Hardcoding 8000 meant this

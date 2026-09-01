@@ -354,10 +354,15 @@ def main() -> int:
     print(f"  {C['c']}API docs {C['x']} http://{SETTINGS.api_host}:{port}/docs")
     print(f"  {C['d']}Trading cycle every {SETTINGS.cycle_seconds}s. Ctrl-C to stop.{C['x']}\n")
 
-    # Run one cycle immediately so the dashboard has content on first paint.
-    print_cycle(desk.run_cycle())
-    print()
-
+    # Bind the port first. The first cycle scans eight symbols, pulls their
+    # option chains, runs a thousand simulated paths per candidate and may call
+    # a language model -- tens of seconds during which nothing was listening.
+    # Running it here meant health checks, reverse proxies and process
+    # supervisors all saw a dead service for the whole of startup.
+    #
+    # The scheduler already runs a cycle the moment it starts, inside the app's
+    # lifespan, so the dashboard still has content almost immediately -- it just
+    # arrives after the socket is open instead of before it.
     uvicorn.run(create_app(desk), host=SETTINGS.api_host, port=port, log_level="warning")
     return 0
 
