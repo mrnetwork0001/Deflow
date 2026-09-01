@@ -237,6 +237,30 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* ---- Market state -------------------------------------------------
+          A grey dot in the status strip was not enough: with the market shut,
+          every panel below still animates, the stream still replays and the
+          book still marks, so the page reads as a desk that is working when
+          it is a desk that is waiting. Say it in words, once, in the one place
+          nobody can miss. */}
+      {status?.market_open === false && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-warn/35 bg-warn/[0.07] px-4 py-2.5">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-warn">
+            Market closed
+          </span>
+          <span className="font-sans text-[12.5px] text-muted">
+            The desk is idle — no cycles run and no orders are placed until the
+            next session. Positions and P&L below are last marks.
+          </span>
+          {status.market_detail && (
+            <span className="ml-auto font-mono text-[10.5px] text-faint">
+              {status.market_detail}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* The rail column and the content column. minmax(0,1fr) here AND min-w-0
           on the content div are both required: a grid item's default
           min-width:auto lets PositionsTable's min-w-[860px] table size the track
@@ -277,8 +301,20 @@ export default function Dashboard() {
                         and the two bases genuinely disagree: on 2026-09-01 our
                         mid-marks read $581.55 against the broker's $405.60 on
                         the same four positions. */}
-                    <Badge tone={perf.mark_source === "alpaca" ? "info" : "warn"}>
-                      {perf.mark_source === "alpaca" ? "broker marks" : "mid marks"}
+                    <Badge
+                      tone={
+                        perf.mark_source !== "alpaca"
+                          ? "warn"
+                          : (perf.broker?.stale_seconds ?? 0) > 0
+                            ? "warn"
+                            : "info"
+                      }
+                    >
+                      {perf.mark_source !== "alpaca"
+                        ? "mid marks"
+                        : (perf.broker?.stale_seconds ?? 0) > 0
+                          ? `broker marks ${Math.round(perf.broker!.stale_seconds!)}s old`
+                          : "broker marks"}
                     </Badge>
                     <span className="tabular font-mono text-[10px] text-faint">
                       {perf.closed_positions} closed · {perf.open_positions} open

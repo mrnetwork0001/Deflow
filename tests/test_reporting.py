@@ -137,3 +137,40 @@ def test_a_real_equity_series_is_kept():
 def test_a_genuine_50pct_drawdown_is_still_charted():
     """The guard must reject a wrong basis, not a bad day."""
     assert _rejects(100_000.0, [100_000.0, 74_000.0, 51_000.0]) is False
+
+
+# -- a transient broker error must not swap the headline's basis -----------
+
+def test_a_failed_call_reuses_the_last_reading_instead_of_changing_basis(monkeypatch):
+    """One failed call used to flip the dashboard from the broker's $99,898.50
+    to our own $100,076.50 and back on the next poll. A reading a minute old is
+    far closer to the truth than a live number on the wrong basis."""
+    _settings(monkeypatch, dry_run=False, creds=True)
+
+    rest = _Rest()
+    desk = _desk(rest)
+    first = api._broker_truth(desk)
+    assert first["equity"] == 100405.60
+
+    # Expire the TTL so the next call goes to the broker, and make it fail.
+    api._broker_cache["at"] -= api.BROKER_TTL_SECONDS + 1
+
+    def boom():
+        return _Result(None, ok=False, error="502 Bad Gateway")
+
+    rest.get_account = boom
+    again = api._broker_truth(desk)
+    assert again is not None, "a transient error must not drop to mid-marks"
+    assert again["equity"] == 100405.60
+    assert again["stale_seconds"] > 0
+
+
+def test_a_reading_older_than_the_max_is_finally_dropped(monkeypatch):
+    _settings(monkeypatch, dry_run=False, creds=True)
+    rest = _Rest()
+    desk = _desk(rest)
+    api._broker_truth(desk)
+
+    api._broker_cache["at"] -= api.BROKER_MAX_STALE_SECONDS + 1
+    rest.get_account = lambda: _Result(None, ok=False, error="502")
+    assert api._broker_truth(desk) is None

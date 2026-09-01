@@ -49,7 +49,7 @@ export interface Performance {
    *  the ask. The dashboard must say which — silently swapping between them is
    *  the same lie as showing a number with no source. */
   mark_source?: "alpaca" | "deflow-mid";
-  broker?: { equity: number; as_of: string } | null;
+  broker?: { equity: number; as_of: string; stale_seconds?: number } | null;
   /** Present only when the broker is the headline: what our own mid-marks say,
    *  kept so the gap stays visible instead of being quietly discarded. */
   desk_mark?: { equity: number; unrealized_pnl: number; total_pnl: number; basis: string };

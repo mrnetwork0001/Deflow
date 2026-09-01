@@ -38,6 +38,9 @@ EVENT_BUFFER = 512
 # one open browser tab into 12 broker calls a minute, so the snapshot is cached
 # for slightly longer than a poll interval.
 BROKER_TTL_SECONDS = 6.0
+# Past this, a cached reading stops standing in for a live one and the caller
+# falls back to mid-marks with the label to match.
+BROKER_MAX_STALE_SECONDS = 900.0
 _broker_lock = threading.Lock()
 _broker_cache: Dict[str, Any] = {"at": 0.0, "snapshot": None}
 
@@ -76,15 +79,34 @@ def _broker_truth(desk: TradingDesk) -> Optional[Dict[str, Any]]:
         if cached is not None and now - _broker_cache["at"] < BROKER_TTL_SECONDS:
             return cached
 
+    def _last_good() -> Optional[Dict[str, Any]]:
+        """Serve the previous broker reading rather than silently changing basis.
+
+        Returning None on a transient error looked safe and was not: the caller
+        falls back to mid-marks, so one failed call swapped the headline from
+        the broker's $99,898.50 to our own $100,076.50 and back again on the
+        next poll. A dashboard whose headline jumps $178 every few seconds is
+        worse than one showing a reading a minute old, and the label already
+        tells the reader which it is. Only genuinely old readings are dropped.
+        """
+        with _broker_lock:
+            stale = _broker_cache["snapshot"]
+            age = now - _broker_cache["at"]
+        if stale is None or age > BROKER_MAX_STALE_SECONDS:
+            return None
+        out = dict(stale)
+        out["stale_seconds"] = round(age, 1)
+        return out
+
     account = rest.get_account()
     if not account.ok or not isinstance(account.data, dict):
         log.warning("Broker equity unavailable: %s", account.error)
-        return None
+        return _last_good()
     try:
         equity = float(account.data["equity"])
     except (KeyError, TypeError, ValueError):
         log.warning("Broker account payload had no usable equity field")
-        return None
+        return _last_good()
 
     # Unrealised comes from the positions, not from equity arithmetic: equity
     # minus starting capital is total P&L, and splitting that into realised and
@@ -272,7 +294,13 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
             round(perf["capital_at_risk"] / equity * 100, 3) if equity else 0.0
         )
         perf["mark_source"] = "alpaca"
-        perf["broker"] = {"equity": equity, "as_of": truth["at"]}
+        perf["broker"] = {
+            "equity": equity,
+            "as_of": truth["at"],
+            # Non-zero means this reading is being reused because the live call
+            # failed. The dashboard says so rather than presenting it as fresh.
+            "stale_seconds": truth.get("stale_seconds", 0.0),
+        }
         return perf
 
     @app.get("/api/positions")
