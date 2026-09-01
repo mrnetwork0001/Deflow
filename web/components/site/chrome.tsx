@@ -81,28 +81,15 @@ export function Nav() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/ledger/"
-            className="hidden rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body sm:block"
-          >
-            Ledger
-          </Link>
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="hidden rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body md:block"
-          >
-            GitHub
-          </a>
-          <Link
-            href="/dashboard/"
-            className="rounded-md bg-gain px-4 py-2 font-mono text-[11px] font-bold text-ink transition-colors hover:bg-gain-dim"
-          >
-            Launch app
-          </Link>
-        </div>
+        {/* Deliberately just the Ledger here: the hero and closing sections
+            carry the launch and GitHub calls-to-action, and duplicating them
+            in the nav crowded the header. */}
+        <Link
+          href="/ledger/"
+          className="rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body"
+        >
+          Ledger
+        </Link>
       </div>
     </nav>
   );
