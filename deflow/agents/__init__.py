@@ -10,9 +10,11 @@ deterministic risk gate has not signed off first.
 """
 
 from .analyst import MacroVolatilityAnalyst
+from .auditor import AdversarialRiskAuditor
 from .structurer import OptionsStructurer
 
 __all__ = [
+    "AdversarialRiskAuditor",
     "MacroVolatilityAnalyst",
     "OptionsStructurer",
 ]
