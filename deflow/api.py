@@ -122,10 +122,17 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
         version="1.0.0",
         lifespan=lifespan,
     )
-    # The dashboard is served from a different port in development.
+    # The dashboard may be served from another origin entirely -- Vercel in
+    # production, localhost:3000 in development -- so the browser's origin is
+    # not the API's. Origins are listed explicitly rather than wildcarded:
+    # POST /api/cycle and /api/risk/evaluate cause work, and a wildcard would
+    # let any page on the internet drive them.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=SETTINGS.cors_origins,
+        # Vercel preview deployments get a fresh subdomain per push, so the
+        # regex admits the project's previews without opening the whole web.
+        allow_origin_regex=r"https://[a-z0-9-]+-.*\.vercel\.app",
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )

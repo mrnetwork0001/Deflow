@@ -135,6 +135,20 @@ class Settings:
     max_concurrent_per_symbol: int = field(default_factory=lambda: _int("DEFLOW_MAX_PER_SYMBOL", 2))
 
     # --- Execution routing --------------------------------------------------
+    # Origins allowed to call the API from a browser. The dashboard is served
+    # from Vercel while the desk runs on its own host, so the browser origin
+    # and the API origin differ and CORS has to name the front end explicitly.
+    cors_origins: List[str] = field(
+        default_factory=lambda: [
+            o.strip().rstrip("/")
+            for o in _env(
+                "DEFLOW_CORS_ORIGINS",
+                default="http://localhost:3000,http://127.0.0.1:3000",
+            ).split(",")
+            if o.strip()
+        ]
+    )
+
     execution_route: str = field(default_factory=lambda: _env("DEFLOW_EXECUTION_ROUTE", default="auto").lower())
     alpaca_cli_bin: str = field(default_factory=lambda: _env("DEFLOW_ALPACA_CLI", default="alpaca"))
     mcp_command: str = field(default_factory=lambda: _env("DEFLOW_MCP_COMMAND", default=""))

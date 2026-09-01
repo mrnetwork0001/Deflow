@@ -4,19 +4,47 @@
 
 :root { color-scheme: dark; }
 
+html { scroll-behavior: smooth; }
+
 body {
-  background: #070a0f;
-  color: #c7d0dd;
+  background: #08090b;
+  color: #dfe4ea;
   font-feature-settings: "tnum" 1, "zero" 1;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Numeric columns must not jitter as digits change. */
 .tabular { font-variant-numeric: tabular-nums; }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0d121b; }
-::-webkit-scrollbar-thumb { background: #1f2836; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #2c3646; }
+/* Section eyebrow rule used across the marketing page. */
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #00e08a;
+}
 
-@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #0e1013; }
+::-webkit-scrollbar-thumb { background: #262b33; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #39414d; }
+
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .live-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* Hairline grid used behind hero and CTA bands. */
+.grid-bg {
+  background-image:
+    linear-gradient(#12151a 1px, transparent 1px),
+    linear-gradient(90deg, #12151a 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
