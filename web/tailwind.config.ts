@@ -14,8 +14,16 @@ const config: Config = {
         body: "#c7d0dd",
       },
       fontFamily: {
+        // Mono stays the brand voice for anything numeric, tabular or
+        // terminal-flavoured. Sans carries prose, which reads badly in mono at
+        // headline sizes.
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+        sans: [
+          "-apple-system", "BlinkMacSystemFont", "Inter", "Segoe UI",
+          "Helvetica Neue", "Arial", "sans-serif",
+        ],
       },
+      maxWidth: { content: "1140px" },
     },
   },
   plugins: [],

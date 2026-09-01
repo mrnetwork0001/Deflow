@@ -295,12 +295,21 @@ outputs, all twelve breaker results with their numbers, and the routing decision
 
 ---
 
-## Dashboard
+## Web app
 
 Next.js 14 (App Router, static export), served by the FastAPI backend at
-`http://127.0.0.1:8000`. Live SSE decision stream, per-symbol variance-premium bars, the open
-book with Greeks, capital-at-risk against the 6% ceiling, and a **"probe with a naked call"**
-button that fires a hostile proposal at the live gate and shows which breakers trip.
+`http://127.0.0.1:8000`. Two routes:
+
+| Route | What it is |
+|---|---|
+| `/` | Landing page — the thesis, the pipeline, the twelve breakers, and a **Launch app** button |
+| `/dashboard/` | The live desk |
+
+The dashboard carries a live SSE decision stream, per-symbol variance-premium bars, the open book
+with Greeks, capital-at-risk metered against the 6% ceiling, and a **"probe with a naked call"**
+button that fires a hostile proposal at the running gate and shows which breakers trip and in how
+many microseconds. The landing page has the same probe, wired to the same endpoint — so the
+headline claim is demonstrable before anyone opens the app.
 
 ```bash
 cd web && npm install && npm run build     # only needed if you change the UI
