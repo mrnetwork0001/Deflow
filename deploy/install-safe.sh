@@ -225,8 +225,10 @@ cat <<NEXT
     ssh -N -L 8000:127.0.0.1:${PORT} root@THIS_SERVER
     # then open http://localhost:8000
 
-  PUBLIC URL later, once DNS for your domain resolves here:
-    sudo bash ${APP_DIR}/deploy/add-nginx-site.sh usedeflow.xyz ${PORT}
+  PUBLIC URL later — use the script matching whichever proxy owns :443 here:
+    caddy:  sudo bash ${APP_DIR}/deploy/add-caddy-site.sh YOUR_DOMAIN ${PORT}
+    nginx:  sudo bash ${APP_DIR}/deploy/add-nginx-site.sh YOUR_DOMAIN ${PORT}
+  Check with:  ss -ltnp | grep ':443 \|:80 '"
 
   TO REMOVE EVERYTHING:
     sudo bash ${APP_DIR}/deploy/uninstall.sh
