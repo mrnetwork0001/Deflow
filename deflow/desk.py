@@ -89,6 +89,7 @@ class CycleReport:
     outcomes: List[SymbolOutcome] = field(default_factory=list)
     exits: List[Dict[str, Any]] = field(default_factory=list)
     fills: List[Dict[str, Any]] = field(default_factory=list)
+    exit_fills: List[Dict[str, Any]] = field(default_factory=list)
     performance: Dict[str, Any] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
 
@@ -111,6 +112,7 @@ class CycleReport:
             "vetoed": self.vetoed,
             "exits": self.exits,
             "fills": self.fills,
+            "exit_fills": self.exit_fills,
             "outcomes": [o.to_dict() for o in self.outcomes],
             "performance": self.performance,
             "errors": self.errors,
@@ -200,6 +202,7 @@ class TradingDesk:
 
         # --- 0b. Manage what is already open -------------------------------
         try:
+            report.exit_fills = self._reconcile_exits()
             report.exits = self._manage_open_positions()
         except Exception as exc:
             log.exception("Position management failed")
@@ -455,6 +458,69 @@ class TradingDesk:
 
         return outcomes
 
+    def _reconcile_exits(self) -> List[Dict[str, Any]]:
+        """Ask the broker what happened to every working CLOSING order.
+
+        Mirrors _reconcile_fills, with one deliberate asymmetry: a stale entry
+        order is dropped whether or not its cancel succeeded, because the worst
+        case is a fill the next reconcile adopts. A stale EXIT order is dropped
+        only after a confirmed cancel -- if the cancel failed and a fresh close
+        went out anyway, both could fill, and closing the same structure twice
+        is a brand-new naked position in the opposite direction.
+        """
+        if not self.portfolio.pending_exits:
+            return []
+
+        outcomes: List[Dict[str, Any]] = []
+        for exit_order in list(self.portfolio.pending_exits.values()):
+            state = self.executor.order_status(exit_order.order_id)
+            status = state["status"]
+            exit_order.status = status
+            exit_order.checks += 1
+
+            record = {
+                "position_id": exit_order.position_id,
+                "order_id": exit_order.order_id,
+                "reason": exit_order.reason,
+                "status": status,
+                "age_seconds": round(exit_order.age_seconds(), 1),
+            }
+
+            if status == "filled":
+                closed = self.portfolio.confirm_exit_fill(
+                    exit_order.position_id, state.get("filled_avg_price")
+                )
+                record["outcome"] = "closed"
+                if closed is not None:
+                    record["realized_pnl"] = round(closed.realized_pnl, 2)
+
+            elif status in {"canceled", "cancelled", "expired", "rejected", "suspended"}:
+                self.portfolio.drop_pending_exit(exit_order.position_id, status)
+                record["outcome"] = "dead"
+
+            elif not state["found"]:
+                self.portfolio.drop_pending_exit(exit_order.position_id, "not found at broker")
+                record["outcome"] = "not_found"
+
+            elif exit_order.age_seconds() > STALE_ORDER_SECONDS:
+                if self.executor.cancel(exit_order.order_id):
+                    self.portfolio.drop_pending_exit(
+                        exit_order.position_id, f"stale after {exit_order.age_seconds():.0f}s"
+                    )
+                    record["outcome"] = "cancelled_stale"
+                else:
+                    # Keep it pending and try the cancel again next cycle.
+                    record["outcome"] = "cancel_failed"
+
+            else:
+                record["outcome"] = "working"
+
+            outcomes.append(record)
+            if record["outcome"] != "working":
+                self._emit("exit_fill", record)
+
+        return outcomes
+
     def _manage_open_positions(self) -> List[Dict[str, Any]]:
         """Mark the book, then close anything the exit guard flags."""
         if not self.portfolio.open:
@@ -480,7 +546,9 @@ class TradingDesk:
         for position, reason in self.portfolio.exits_due():
             if position.id in rolled_ids:
                 continue
-            result = self.executor.close(position.proposal, reason)
+            result = self.executor.close(
+                position.proposal, reason, mark_premium=position.mark_premium
+            )
             record = {
                 "position_id": position.id,
                 "symbol": position.symbol,
@@ -491,9 +559,19 @@ class TradingDesk:
                 "route": result.route,
                 "error": result.error,
             }
-            if result.submitted:
-                closed = self.portfolio.close(position.id, reason)
-                record["realized_pnl"] = round(closed.realized_pnl, 2) if closed else 0.0
+            # Submission is not a fill, on the way out exactly as on the way
+            # in. Booking here wrote realised P&L to the ledger and freed the
+            # risk budget while the legs were still live at the broker under a
+            # resting limit order -- a phantom flat. The close becomes real in
+            # _reconcile_exits(), when the broker says it traded.
+            if result.dry_run:
+                record["outcome"] = "dry_run"
+            elif result.submitted:
+                self.portfolio.add_pending_exit(
+                    position.id, result.order_id, reason,
+                    limit_price=result.limit_price, simulated=result.simulated,
+                )
+                record["outcome"] = "exit_working"
             self._emit("exit", record)
             exits.append(record)
         return exits
@@ -538,12 +616,20 @@ class TradingDesk:
                 self._emit("roll_rejected", record)
                 continue
 
-            close = self.executor.close(position.proposal, f"rolling: {why}")
+            close = self.executor.close(
+                position.proposal, f"rolling: {why}", mark_premium=position.mark_premium
+            )
             if not close.submitted:
                 record["error"] = f"close failed: {close.error}"
                 self._emit("roll_rejected", record)
                 continue
 
+            # KNOWN GAP: the roll still books this close on acceptance rather
+            # than through the pending-exit lifecycle, because its close-then-
+            # open sequencing needs the close CONFIRMED before the new leg goes
+            # out -- a bigger change than a flag flip. Rolls ship disabled
+            # (DEFLOW_ROLL_ENABLED) and must not be enabled until this books on
+            # fill like _manage_open_positions does.
             closed = self.portfolio.close(position.id, f"rolled out: {why}")
             plan.proposal.proposal_id = f"roll-{position.id[-8:]}-{position.rolls + 1}"
             opened = self.executor.submit(plan.proposal, self.portfolio.state(), verdict)

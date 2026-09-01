@@ -306,6 +306,65 @@ class PendingOrder:
         return d
 
 
+
+@dataclass
+class PendingExit:
+    """A submitted CLOSING order that has not been confirmed filled.
+
+    The entry side learned this lesson first: Alpaca accepting an order says
+    nothing about a fill. Booking an exit on acceptance was worse than the
+    entry version of the bug -- the desk wrote realised P&L to the ledger,
+    freed the risk budget and opened new positions while the "closed" legs
+    were still live at the broker under a resting order. The position stays in
+    the book, still marked and still consuming budget, until the broker
+    confirms the close actually traded.
+    """
+
+    position_id: str
+    order_id: str
+    reason: str
+    submitted_at: str
+    limit_price: float = 0.0
+    simulated: bool = False
+    status: str = "new"
+    checks: int = 0
+
+    def age_seconds(self, now: Optional[datetime] = None) -> float:
+        try:
+            started = datetime.fromisoformat(self.submitted_at)
+        except (TypeError, ValueError):
+            return 0.0
+        now = now or datetime.now(timezone.utc)
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        return max((now - started).total_seconds(), 0.0)
+
+    def to_state(self) -> Dict[str, Any]:
+        return {
+            "position_id": self.position_id,
+            "order_id": self.order_id,
+            "reason": self.reason,
+            "submitted_at": self.submitted_at,
+            "limit_price": self.limit_price,
+            "simulated": self.simulated,
+            "status": self.status,
+            "checks": self.checks,
+        }
+
+    @staticmethod
+    def from_state(d: Dict[str, Any]) -> "PendingExit":
+        return PendingExit(
+            position_id=str(d["position_id"]),
+            order_id=str(d.get("order_id", "")),
+            reason=str(d.get("reason", "")),
+            submitted_at=str(d.get("submitted_at", "")),
+            limit_price=float(d.get("limit_price", 0.0)),
+            simulated=bool(d.get("simulated", False)),
+            status=str(d.get("status", "new")),
+            checks=int(d.get("checks", 0)),
+        )
+
+
 @dataclass
 class ClosedPosition:
     position: OpenPosition
@@ -349,6 +408,10 @@ class Portfolio:
         self.cash_pnl = 0.0
         self.open: Dict[str, OpenPosition] = {}
         self.pending: Dict[str, PendingOrder] = {}
+        # Keyed by position_id. A position with a pending exit stays in `open`
+        # -- it is still owned, still marked, still consuming risk budget --
+        # but the guard must not submit a second close for it.
+        self.pending_exits: Dict[str, PendingExit] = {}
         self.closed: List[ClosedPosition] = []
         self._path = DATA_DIR / "positions.json"
 
@@ -450,6 +513,55 @@ class Portfolio:
             self.save()
         return order
 
+    def add_pending_exit(
+        self, position_id: str, order_id: str, reason: str,
+        limit_price: float = 0.0, simulated: bool = False,
+    ) -> PendingExit:
+        """Record a working CLOSING order. The position is closed only when it fills."""
+        exit_order = PendingExit(
+            position_id=position_id,
+            order_id=order_id,
+            reason=reason,
+            submitted_at=utcnow(),
+            limit_price=limit_price,
+            simulated=simulated,
+        )
+        self.pending_exits[position_id] = exit_order
+        self.save()
+        return exit_order
+
+    def confirm_exit_fill(
+        self, position_id: str, filled_net: Optional[float] = None
+    ) -> Optional[ClosedPosition]:
+        """Book the close at the price the broker actually gave.
+
+        `filled_net` is the closing package price in Alpaca's convention
+        (positive debit paid, negative credit received). Closing is the mirror
+        of holding, so the structure's terminal value is -filled_net, and the
+        realised P&L is measured from there -- not from the last mid-mark,
+        which is a forecast of this number, not a record of it.
+        """
+        exit_order = self.pending_exits.pop(position_id, None)
+        if exit_order is None:
+            return None
+        position = self.open.get(position_id)
+        if position is not None and filled_net is not None:
+            position.unrealized_pnl = (
+                (-filled_net - position.entry_premium)
+                * CONTRACT_MULTIPLIER
+                * position.proposal.contracts
+            )
+        return self.close(position_id, exit_order.reason)
+
+    def drop_pending_exit(self, position_id: str, reason: str) -> Optional[PendingExit]:
+        """Discard a closing order that will never fill. The position stays
+        open -- the exit guard will flag it again next cycle at a fresh mark."""
+        exit_order = self.pending_exits.pop(position_id, None)
+        if exit_order is not None:
+            log.info("Dropped closing order for %s: %s", position_id, reason)
+            self.save()
+        return exit_order
+
     def add(
         self,
         proposal: SpreadProposal,
@@ -503,6 +615,11 @@ class Portfolio:
         """
         due = []
         for position in self.open.values():
+            # Already has a close working at the broker. Submitting another
+            # would risk both filling -- a doubled exit is a new naked position
+            # in the opposite direction.
+            if position.id in self.pending_exits:
+                continue
             should_close, reason = self.gate.evaluate_exit(
                 unrealized_pnl=position.unrealized_pnl,
                 max_loss=position.max_loss,
@@ -575,6 +692,7 @@ class Portfolio:
                         # the file stays readable by eye.
                         "open": [p.to_state() for p in self.open.values()],
                         "pending": [o.to_state() for o in self.pending.values()],
+                        "pending_exits": [e.to_state() for e in self.pending_exits.values()],
                         "closed": [c.to_state() for c in self.closed],
                         "open_readable": [p.to_dict() for p in self.open.values()],
                     },
@@ -630,6 +748,16 @@ class Portfolio:
                 log.error("Could not restore working order: %s", exc)
                 continue
             self.pending[order.id] = order
+
+        for record in saved.get("pending_exits", []):
+            try:
+                exit_order = PendingExit.from_state(record)
+            except (KeyError, ValueError, TypeError) as exc:
+                log.error("Could not restore closing order: %s", exc)
+                continue
+            # An exit for a position that did not restore is unactionable.
+            if exit_order.position_id in self.open:
+                self.pending_exits[exit_order.position_id] = exit_order
 
         for record in saved.get("closed", []):
             try:

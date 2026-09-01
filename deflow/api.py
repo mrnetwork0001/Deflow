@@ -144,6 +144,69 @@ def _broker_truth(desk: TradingDesk) -> Optional[Dict[str, Any]]:
     return snapshot
 
 
+def _published_performance(desk: TradingDesk) -> Dict[str, Any]:
+    """Book statistics, with the headline money taken from the broker.
+
+    `mark_source` says which basis the equity figure is on. It is not
+    decoration: a dashboard that silently swaps between the broker's number
+    and our own mid-marks is lying by omission on whichever day the broker
+    call fails.
+    """
+    perf = desk.portfolio.performance()
+    truth = _broker_truth(desk)
+    if truth is None:
+        # Two different situations, and only one of them may show a number.
+        #
+        # With no broker configured, mid-marks are the whole truth and are
+        # reported as such. But when the broker owns the book and simply has
+        # not answered -- which is every restart, before the first call
+        # lands -- a mid-mark is not a stand-in for its equity. At 20:07Z on
+        # 2026-09-01 the desk's mid-mark said $100,375.00 while the account
+        # said $99,898.50: a $476.50 error, and positive where the truth was
+        # negative, published on the headline of the public dashboard.
+        # Mid-marks price off stale quotes, which after the close are stale
+        # by definition, so the gap is widest exactly when the desk is idle
+        # and someone is most likely to be reading.
+        perf["mark_source"] = "unavailable" if _broker_is_the_authority(desk) else "deflow-mid"
+        perf["broker"] = None
+        return perf
+
+    # Keep our own figure alongside, labelled. The gap between mid-marks and
+    # liquidation marks is a real property of the book -- roughly the cost of
+    # crossing eight bid/ask spreads -- and hiding it would throw away the
+    # one number that says what an exit would actually collect.
+    perf["desk_mark"] = {
+        "equity": perf["equity"],
+        "unrealized_pnl": perf["unrealized_pnl"],
+        "total_pnl": perf["total_pnl"],
+        "basis": "quote mid",
+    }
+
+    equity = truth["equity"]
+    start = perf["starting_equity"]
+    perf["equity"] = equity
+    perf["total_pnl"] = round(equity - start, 2)
+    perf["return_pct"] = round((equity / start - 1.0) * 100.0, 4) if start else 0.0
+    if truth["unrealized_pnl"] is not None:
+        perf["unrealized_pnl"] = truth["unrealized_pnl"]
+        # Realised is then a residual, which is what keeps the three numbers
+        # adding up on screen instead of drifting apart by the mark gap.
+        perf["realized_pnl"] = round(perf["total_pnl"] - truth["unrealized_pnl"], 2)
+    # Risk headroom is a fraction of real equity, so it moves with it.
+    perf["capital_at_risk_pct"] = (
+        round(perf["capital_at_risk"] / equity * 100, 3) if equity else 0.0
+    )
+    perf["mark_source"] = "alpaca"
+    perf["broker"] = {
+        "equity": equity,
+        "as_of": truth["at"],
+        # Non-zero means this reading is being reused because the live call
+        # failed. The dashboard says so rather than presenting it as fresh.
+        "stale_seconds": truth.get("stale_seconds", 0.0),
+    }
+    return perf
+
+
 class EventHub:
     """Fan-out of desk events to any number of connected SSE clients."""
 
@@ -262,72 +325,20 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
     def status() -> Dict[str, Any]:
         payload = desk.status()
         payload["scheduler"] = {"running": scheduler.running, "interval_seconds": scheduler.interval}
+        # The dashboard reads its money figures from THIS payload, not from
+        # /api/performance. The broker overlay lived only on the sibling
+        # endpoint for a while, which meant every fix to it was verified with
+        # curl against a route the page never calls -- and the panel kept
+        # showing raw mid-marks through three rounds of "it works now".
+        payload["performance"] = _published_performance(desk)
         return payload
 
     # -- book ---------------------------------------------------------------
 
     @app.get("/api/performance")
     def performance() -> Dict[str, Any]:
-        """Book statistics, with the headline money taken from the broker.
+        return _published_performance(desk)
 
-        `mark_source` says which basis the equity figure is on. It is not
-        decoration: a dashboard that silently swaps between the broker's number
-        and our own mid-marks is lying by omission on whichever day the broker
-        call fails.
-        """
-        perf = desk.portfolio.performance()
-        truth = _broker_truth(desk)
-        if truth is None:
-            # Two different situations, and only one of them may show a number.
-            #
-            # With no broker configured, mid-marks are the whole truth and are
-            # reported as such. But when the broker owns the book and simply has
-            # not answered -- which is every restart, before the first call
-            # lands -- a mid-mark is not a stand-in for its equity. At 20:07Z on
-            # 2026-09-01 the desk's mid-mark said $100,375.00 while the account
-            # said $99,898.50: a $476.50 error, and positive where the truth was
-            # negative, published on the headline of the public dashboard.
-            # Mid-marks price off stale quotes, which after the close are stale
-            # by definition, so the gap is widest exactly when the desk is idle
-            # and someone is most likely to be reading.
-            perf["mark_source"] = "unavailable" if _broker_is_the_authority(desk) else "deflow-mid"
-            perf["broker"] = None
-            return perf
-
-        # Keep our own figure alongside, labelled. The gap between mid-marks and
-        # liquidation marks is a real property of the book -- roughly the cost of
-        # crossing eight bid/ask spreads -- and hiding it would throw away the
-        # one number that says what an exit would actually collect.
-        perf["desk_mark"] = {
-            "equity": perf["equity"],
-            "unrealized_pnl": perf["unrealized_pnl"],
-            "total_pnl": perf["total_pnl"],
-            "basis": "quote mid",
-        }
-
-        equity = truth["equity"]
-        start = perf["starting_equity"]
-        perf["equity"] = equity
-        perf["total_pnl"] = round(equity - start, 2)
-        perf["return_pct"] = round((equity / start - 1.0) * 100.0, 4) if start else 0.0
-        if truth["unrealized_pnl"] is not None:
-            perf["unrealized_pnl"] = truth["unrealized_pnl"]
-            # Realised is then a residual, which is what keeps the three numbers
-            # adding up on screen instead of drifting apart by the mark gap.
-            perf["realized_pnl"] = round(perf["total_pnl"] - truth["unrealized_pnl"], 2)
-        # Risk headroom is a fraction of real equity, so it moves with it.
-        perf["capital_at_risk_pct"] = (
-            round(perf["capital_at_risk"] / equity * 100, 3) if equity else 0.0
-        )
-        perf["mark_source"] = "alpaca"
-        perf["broker"] = {
-            "equity": equity,
-            "as_of": truth["at"],
-            # Non-zero means this reading is being reused because the live call
-            # failed. The dashboard says so rather than presenting it as fresh.
-            "stale_seconds": truth.get("stale_seconds", 0.0),
-        }
-        return perf
 
     @app.get("/api/positions")
     def positions() -> Dict[str, Any]:

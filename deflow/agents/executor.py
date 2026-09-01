@@ -23,6 +23,7 @@ reach `submit` without a fresh approval on the exact proposal being sent.
 from __future__ import annotations
 
 import logging
+import math
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -127,18 +128,22 @@ class ExecutionAgent:
     # -- pricing ------------------------------------------------------------
 
     @staticmethod
-    def limit_price_for(proposal: SpreadProposal) -> float:
-        """Net limit for the package, in Alpaca's sign convention.
+    def _buffered(net: float) -> float:
+        """Apply the slippage concession to a net package price.
 
         Positive is a debit paid, negative is a credit received. The buffer
         moves the limit *against* us -- pay a touch more for a debit, accept a
         touch less for a credit -- so the order is marketable rather than
         resting at an untouched mid.
         """
-        net = proposal.net_premium  # positive debit / negative credit
         if net >= 0:
             return round(net * (1.0 + SLIPPAGE_BUFFER), 2)
         return round(net * (1.0 - SLIPPAGE_BUFFER), 2)
+
+    @classmethod
+    def limit_price_for(cls, proposal: SpreadProposal) -> float:
+        """Net limit for OPENING the package, from its proposal-time premium."""
+        return cls._buffered(proposal.net_premium)
 
     @staticmethod
     def legs_payload(proposal: SpreadProposal, closing: bool = False) -> List[Dict[str, Any]]:
@@ -378,10 +383,32 @@ class ExecutionAgent:
 
     # -- exits --------------------------------------------------------------
 
-    def close(self, proposal: SpreadProposal, reason: str) -> ExecutionResult:
+    def close(
+        self, proposal: SpreadProposal, reason: str, mark_premium: Optional[float] = None
+    ) -> ExecutionResult:
         """Close an open structure. Exits are never gated -- the risk gate
-        exists to stop new risk, not to trap the desk in an existing position."""
-        limit_price = -self.limit_price_for(proposal)
+        exists to stop new risk, not to trap the desk in an existing position.
+
+        `mark_premium` is the structure's CURRENT net value, in the entry sign
+        convention. The closing limit must come from it, not from the entry
+        price: pricing the close off proposal.net_premium demanded entry+3%
+        back on every exit, which a winner clears and a loser never can. That
+        made the stop-loss decorative -- the one order it exists to send was,
+        by construction, unfillable. Closing an asset (mark > 0) means selling
+        it, so the close nets a credit of -mark; the usual concession is then
+        applied so the order is marketable on today's market, whatever today
+        looks like.
+        """
+        if mark_premium is not None and math.isfinite(mark_premium):
+            limit_price = self._buffered(-mark_premium)
+        else:
+            # No usable mark. The entry-derived limit is wrong for any position
+            # that has moved, but an exit attempt beats refusing to try.
+            log.warning(
+                "Closing %s without a current mark; falling back to the entry-derived limit",
+                proposal.symbol,
+            )
+            limit_price = -self.limit_price_for(proposal)
         client_order_id = f"deflow-x-{uuid.uuid4().hex[:22]}"
         base = dict(
             route=self.resolve_route(),
