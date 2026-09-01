@@ -1,0 +1,20 @@
+# Deflow runtime dependencies.
+#
+# Deliberately minimal. The pricing engine, Greeks, implied-vol solver, Monte
+# Carlo simulator and the entire risk gate are pure standard library -- a
+# trading system's risk controls should not fail to import because a numerical
+# stack has no wheel for the interpreter it landed on. numpy, scipy and pandas
+# are not required and not used.
+
+fastapi>=0.110.0        # REST + SSE backend
+uvicorn>=0.28.0         # ASGI server
+httpx>=0.27.0           # Alpaca REST + Featherless AI inference
+
+# Alpaca's official MCP server and CLI are external tools, not Python
+# dependencies. Deflow discovers both at runtime and degrades gracefully:
+#
+#   CLI  go install github.com/alpacahq/cli/cmd/alpaca@latest
+#        (or: brew install alpacahq/tap/cli)
+#   MCP  uvx --with 'fastmcp>=3.1,<4' alpaca-mcp-server
+#        (launched automatically; the fastmcp pin is required -- see
+#         deflow/alpaca_mcp.py for why)
