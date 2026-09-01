@@ -18,12 +18,13 @@ import math
 import random
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Dict, List, Optional, Protocol, Sequence
+from typing import Any, Dict, List, Optional, Protocol, Sequence
 
 from .alpaca_rest import AlpacaClient
 from .config import DATA_DIR, SETTINGS, Settings
 from .greeks import black_scholes, implied_vol, years_to_expiry
 from .indicators import (
+    forecast_vol,
     percentile_rank,
     range_rank,
     realized_vol,
@@ -163,6 +164,59 @@ class AlpacaMarketData:
         self._bars_cache[symbol] = closes
         return closes
 
+    def _contract_meta(
+        self, symbol: str, min_dte: int, max_dte: int, spot: float
+    ) -> Dict[str, Dict[str, Any]]:
+        """Open interest and tradability, keyed by OCC symbol.
+
+        Alpaca splits the data a liquidity filter needs across two endpoints:
+        the snapshot carries quotes, Greeks and implied vol but **no open
+        interest**, while the contracts endpoint carries open interest but no
+        quotes. Screening on liquidity means joining them.
+
+        Getting this wrong is not a subtle failure. Reading `openInterest` off
+        the snapshot -- where the field simply does not exist -- yields 0 for
+        every contract, and a `>= 100` filter then rejects the entire option
+        universe on every symbol, every cycle, while reporting only that
+        nothing "cleared the liquidity filter".
+        """
+        today = date.today()
+        cache_key = f"meta:{symbol}:{min_dte}:{max_dte}"
+        cached = self._chain_cache.get(cache_key)
+        if cached and (datetime.now(timezone.utc) - cached[0]).total_seconds() < 900:
+            return cached[1]
+
+        meta: Dict[str, Dict[str, Any]] = {}
+        token: Optional[str] = None
+        for _ in range(20):  # bounded: ~20k contracts is far beyond any single name
+            result = self.client.get_option_contracts(
+                symbol,
+                expiration_gte=today + timedelta(days=min_dte),
+                expiration_lte=today + timedelta(days=max_dte),
+                strike_gte=spot * 0.80,
+                strike_lte=spot * 1.20,
+                page_token=token,
+            )
+            if not result.ok:
+                log.warning("Contract metadata unavailable for %s: %s", symbol, result.error)
+                break
+            payload = result.data or {}
+            for contract in payload.get("option_contracts", []):
+                occ = contract.get("symbol")
+                if not occ:
+                    continue
+                try:
+                    oi = int(contract.get("open_interest") or 0)
+                except (TypeError, ValueError):
+                    oi = 0
+                meta[occ] = {"open_interest": oi, "tradable": bool(contract.get("tradable", True))}
+            token = payload.get("next_page_token")
+            if not token:
+                break
+
+        self._chain_cache[cache_key] = (datetime.now(timezone.utc), meta)
+        return meta
+
     def option_chain(self, symbol: str, min_dte: int = 7, max_dte: int = 60) -> List[OptionQuote]:
         today = date.today()
         cache_key = f"{symbol}:{min_dte}:{max_dte}"
@@ -186,6 +240,8 @@ class AlpacaMarketData:
             log.warning("No option chain for %s: %s", symbol, result.error)
             return []
 
+        contract_meta = self._contract_meta(symbol, min_dte, max_dte, spot)
+
         quotes: List[OptionQuote] = []
         for occ, snap in (result.data or {}).get("snapshots", {}).items():
             quote = snap.get("latestQuote") or {}
@@ -195,8 +251,12 @@ class AlpacaMarketData:
             try:
                 from .models import parse_occ
 
-                meta = parse_occ(occ)
+                parsed = parse_occ(occ)
             except ValueError:
+                continue
+
+            contract = contract_meta.get(occ)
+            if contract is not None and not contract["tradable"]:
                 continue
 
             greeks = snap.get("greeks") or {}
@@ -204,8 +264,8 @@ class AlpacaMarketData:
             if iv <= 0:
                 # Alpaca omits IV on illiquid contracts; recover it ourselves.
                 iv = implied_vol(
-                    (bid + ask) / 2.0, spot, meta["strike"],
-                    years_to_expiry((meta["expiry"] - today).days), meta["right"],
+                    (bid + ask) / 2.0, spot, parsed["strike"],
+                    years_to_expiry((parsed["expiry"] - today).days), parsed["right"],
                 )
             quotes.append(
                 OptionQuote(
@@ -213,11 +273,13 @@ class AlpacaMarketData:
                     bid=bid,
                     ask=ask,
                     underlying_price=spot,
-                    strike=meta["strike"],
-                    right=meta["right"],
-                    expiry=meta["expiry"],
+                    strike=parsed["strike"],
+                    right=parsed["right"],
+                    expiry=parsed["expiry"],
                     implied_vol=iv,
-                    open_interest=int(snap.get("openInterest", 0) or 0),
+                    # Joined from the contracts endpoint; the snapshot has no
+                    # open-interest field.
+                    open_interest=(contract or {}).get("open_interest", 0),
                     volume=int((snap.get("dailyBar") or {}).get("v", 0) or 0),
                 )
             )
@@ -244,6 +306,7 @@ class AlpacaMarketData:
         spot = self.spot(symbol) or closes[-1]
         hv_series = rolling_realized_vol(closes, 20)[-252:]
         hv60 = realized_vol(closes, 60)
+        hv_fc = forecast_vol(closes)
 
         chain = self.option_chain(symbol, 20, 45)
         atm_iv = _atm_iv(chain, spot) or hv60
@@ -262,7 +325,8 @@ class AlpacaMarketData:
             sma20=sma(closes, 20),
             sma50=sma(closes, 50),
             rsi14=rsi(closes, 14),
-            variance_premium=atm_iv - hv60,
+            hv_forecast=hv_fc,
+            variance_premium=atm_iv - hv_fc,
         )
 
 
@@ -437,6 +501,7 @@ class SimulatedMarketData:
         spot = closes[-1]
         hv_series = rolling_realized_vol(closes, 20)[-252:]
         hv60 = realized_vol(closes, 60)
+        hv_fc = forecast_vol(closes)
         atm_iv = self._iv_at(symbol, spot, spot, 30)
         self.iv_store.record(symbol, atm_iv)
         rank = self.iv_store.rank(symbol, atm_iv, hv_series)
@@ -452,7 +517,8 @@ class SimulatedMarketData:
             sma20=sma(closes, 20),
             sma50=sma(closes, 50),
             rsi14=rsi(closes, 14),
-            variance_premium=atm_iv - hv60,
+            hv_forecast=hv_fc,
+            variance_premium=atm_iv - hv_fc,
         )
 
 

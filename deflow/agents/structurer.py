@@ -111,16 +111,38 @@ class OptionsStructurer:
 
     @staticmethod
     def _liquid(quotes: Sequence[OptionQuote]) -> List[OptionQuote]:
-        """Drop anything we could not get out of at a fair price."""
-        return [
-            q
-            for q in quotes
-            if q.bid >= MIN_BID
-            and q.ask > q.bid
-            and q.spread_pct <= MAX_SPREAD_PCT
-            and q.open_interest >= MIN_OPEN_INTEREST
+        """Drop anything we could not get out of at a fair price.
+
+        The open-interest test is applied only when open-interest data actually
+        arrived. If every contract in the chain reports zero, that is a data
+        problem, not a market in which nothing is open — and silently applying
+        the filter anyway rejects the entire universe on every symbol while
+        reporting nothing worse than "no candidates".
+
+        That exact failure cost a full pre-market cycle: open interest is
+        served by Alpaca's contracts endpoint, not its snapshot endpoint, and
+        reading it off the snapshot yields 0 everywhere. So when the signal is
+        missing the desk keeps trading on bid/ask width alone and says loudly
+        that it is doing so, rather than going quiet and looking well-behaved.
+        """
+        priced = [
+            q for q in quotes
+            if q.bid >= MIN_BID and q.ask > q.bid and q.spread_pct <= MAX_SPREAD_PCT
             and q.implied_vol > 0
         ]
+        if not priced:
+            return []
+
+        if all(q.open_interest <= 0 for q in priced):
+            log.warning(
+                "Open interest is zero across all %d priced contracts for %s — treating the "
+                "signal as unavailable and screening on bid/ask width alone. Check the "
+                "contracts-endpoint join.",
+                len(priced), priced[0].symbol[:6].rstrip("0123456789") or "?",
+            )
+            return priced
+
+        return [q for q in priced if q.open_interest >= MIN_OPEN_INTEREST]
 
     @staticmethod
     def _delta_of(q: OptionQuote) -> float:
@@ -432,7 +454,7 @@ class OptionsStructurer:
         printing, while being paid at the volatility the market is charging.
         """
         p = candidate.proposal
-        realised = max(view.snapshot.hv_60d, 0.03)
+        realised = max(view.snapshot.hv_forecast, 0.03)
 
         physical = stress_test(p, paths=400, vol_override=realised)
         risk_neutral = stress_test(p, paths=400)

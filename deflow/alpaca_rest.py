@@ -165,14 +165,22 @@ class AlpacaClient:
         expiration_lte: Optional[date] = None,
         strike_gte: Optional[float] = None,
         strike_lte: Optional[float] = None,
-        limit: int = 1000,
+        limit: int = 10_000,
+        page_token: Optional[str] = None,
     ) -> ApiResult:
-        """Tradable contract universe for an underlying (Trading API)."""
+        """Tradable contract universe for an underlying (Trading API).
+
+        This is the only endpoint that carries **open interest** -- the option
+        snapshot endpoint does not return it at any feed level. Liquidity
+        screening therefore needs both calls joined on the OCC symbol.
+        """
         params: Dict[str, Any] = {
             "underlying_symbols": underlying.upper(),
             "status": "active",
             "limit": limit,
         }
+        if page_token:
+            params["page_token"] = page_token
         if expiration_gte:
             params["expiration_date_gte"] = expiration_gte.isoformat()
         if expiration_lte:
