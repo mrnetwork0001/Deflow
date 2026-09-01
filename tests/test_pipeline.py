@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -582,8 +583,10 @@ def test_dry_run_books_nothing(tmp_path, monkeypatch):
     assert portfolio.capital_at_risk == 0.0
     for outcome in reached_execution:
         assert outcome.execution["dry_run"] is True
-        # The rendered request must still be complete enough to inspect.
-        assert outcome.execution["request_body"]["legs"]
+        # A proposal the execution-time gate re-check refused never reaches the
+        # point of rendering a request body, so only assert on the ones that did.
+        if not outcome.execution["error"].startswith("Execution-time risk gate"):
+            assert outcome.execution["request_body"]["legs"]
 
 
 def test_dry_run_still_renders_a_complete_order(tmp_path, monkeypatch):
@@ -602,3 +605,136 @@ def test_dry_run_still_renders_a_complete_order(tmp_path, monkeypatch):
     legs = result.request_body["legs"]
     assert len(legs) == len(proposal.legs)
     assert {l["position_intent"] for l in legs} == {"sell_to_open", "buy_to_open"}
+
+
+# --------------------------------------------------------------------------
+# Breaker 4 is strategy-aware
+# --------------------------------------------------------------------------
+
+def _proposal(**kw):
+    base = {
+        "symbol": "SPY", "is_defined_risk_spread": True, "leg_count": 2,
+        "contracts": 2, "net_delta": 0.20, "net_vega": 5.0, "dte": 30,
+    }
+    base.update(kw)
+    return base
+
+
+def _breaker(verdict, n):
+    return next(b for b in verdict.breakers if b.id == n)
+
+
+@pytest.mark.parametrize("pop,expected", [(0.78, True), (0.65, True), (0.649, False), (0.40, False)])
+def test_credit_spreads_keep_the_65pct_win_rate_floor(gate, pop, expected):
+    v = gate.evaluate_trade(
+        _proposal(strategy="bull_put_spread", probability_of_profit=pop,
+                  max_loss=1600.0, max_profit=400.0),
+        PortfolioState(equity=100_000.0),
+    )
+    assert _breaker(v, 4).passed is expected
+
+
+def test_debit_spread_with_positive_expectancy_is_allowed(gate):
+    """A 45%-win-rate call spread paying 2:1 is a good trade, not a bad one."""
+    v = gate.evaluate_trade(
+        _proposal(strategy="bull_call_spread", probability_of_profit=0.45,
+                  max_loss=1000.0, max_profit=2000.0),
+        PortfolioState(equity=100_000.0),
+    )
+    assert _breaker(v, 4).passed
+
+
+def test_debit_spread_with_negative_expectancy_is_refused(gate):
+    """Same win rate, worse payoff: 0.45x900 < 0.55x1000."""
+    v = gate.evaluate_trade(
+        _proposal(strategy="bull_call_spread", probability_of_profit=0.45,
+                  max_loss=1000.0, max_profit=900.0),
+        PortfolioState(equity=100_000.0),
+    )
+    assert not _breaker(v, 4).passed
+
+
+def test_debit_lottery_ticket_is_refused_despite_positive_expectancy(gate):
+    """+$625 expected value, but it loses three times out of four."""
+    v = gate.evaluate_trade(
+        _proposal(strategy="bull_call_spread", probability_of_profit=0.25,
+                  max_loss=500.0, max_profit=4000.0),
+        PortfolioState(equity=100_000.0),
+    )
+    assert not _breaker(v, 4).passed
+
+
+def test_debit_branch_still_fails_closed_on_missing_fields(gate):
+    v = gate.evaluate_trade(
+        _proposal(strategy="bull_call_spread", max_loss=1000.0),  # no pop, no max_profit
+        PortfolioState(equity=100_000.0),
+    )
+    assert not _breaker(v, 4).passed
+
+
+# --------------------------------------------------------------------------
+# Jump-robust volatility
+# --------------------------------------------------------------------------
+
+def test_bipower_is_barely_moved_by_a_single_jump():
+    """The MSFT case: one +14% earnings gap nearly doubled 60-day realised vol."""
+    import math
+
+    from deflow.indicators import bipower_vol, realized_vol
+
+    calm = [100.0]
+    for i in range(60):
+        calm.append(calm[-1] * math.exp(0.004 * (1 if i % 2 else -1)))
+
+    jumped = list(calm)
+    jumped[30:] = [p * 1.14 for p in jumped[30:]]   # one gap, no change in daily noise
+
+    plain_ratio = realized_vol(jumped, 60) / realized_vol(calm, 60)
+    robust_ratio = bipower_vol(jumped, 60) / bipower_vol(calm, 60)
+    assert plain_ratio > 3.0, "the naive estimator should be badly distorted"
+    assert robust_ratio < plain_ratio / 2, "bipower should absorb most of the jump"
+
+
+def test_forecast_vol_falls_back_on_short_history():
+    from deflow.indicators import forecast_vol
+
+    assert forecast_vol([100.0, 101.0]) == 0.0
+    assert forecast_vol([]) == 0.0
+
+
+def test_snapshot_measures_variance_premium_against_the_forecast():
+    provider = SimulatedMarketData()
+    snap = provider.snapshot("SPY")
+    assert snap.hv_forecast > 0
+    assert snap.variance_premium == pytest.approx(snap.iv_30d - snap.hv_forecast, abs=1e-9)
+
+
+def test_ledger_survives_concurrent_writers(tmp_path, monkeypatch):
+    """Two Deflow processes sharing a data directory must not fork the chain.
+
+    An in-memory head is correct only while exactly one process is running.
+    A stray background server, a --once run beside a live one, or a deployment
+    scaled to two replicas all interleave appends, and every record after the
+    collision points at a predecessor that is no longer its neighbour.
+    """
+    import subprocess
+    import sys as _sys
+
+    import deflow.ledger as ledger_module
+
+    worker = (
+        "import sys; sys.path.insert(0, %r)\n"
+        "import deflow.ledger as L\n"
+        "L.DATA_DIR = __import__('pathlib').Path(%r)\n"
+        "led = L.DecisionLedger('concurrent.jsonl')\n"
+        "[led.append('probe', {'w': sys.argv[1], 'i': i}) for i in range(40)]\n"
+        % (str(Path(__file__).resolve().parent.parent), str(tmp_path))
+    )
+    procs = [subprocess.Popen([_sys.executable, "-c", worker, str(w)]) for w in range(3)]
+    for proc in procs:
+        assert proc.wait() == 0
+
+    monkeypatch.setattr(ledger_module, "DATA_DIR", tmp_path)
+    status = ledger_module.DecisionLedger("concurrent.jsonl").verify()
+    assert status.valid, status.detail
+    assert status.entries == 120, f"expected 120 appends, chain has {status.entries}"

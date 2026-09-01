@@ -91,10 +91,23 @@ def _extract_json(text: str) -> Optional[Dict[str, Any]]:
 class FeatherlessClient:
     """Serverless open-model inference for the desk's reasoning layer."""
 
-    def __init__(self, settings: Settings = SETTINGS, timeout: float = 45.0) -> None:
+    def __init__(
+        self,
+        settings: Settings = SETTINGS,
+        timeout: float = 45.0,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        """`enabled=False` forces the deterministic path regardless of config.
+
+        Tests need this. Without it, merely having a working key in .env makes
+        the whole suite reach across the network on every simulated cycle --
+        slow, flaky, dependent on a third party, and quietly spending the
+        hackathon's inference credits to assert things that have nothing to do
+        with the model.
+        """
         self.settings = settings
         self.model = settings.featherless_model
-        self.enabled = settings.has_featherless
+        self.enabled = settings.has_featherless if enabled is None else bool(enabled)
         self._client = httpx.Client(
             timeout=timeout,
             headers={
@@ -185,8 +198,12 @@ class ReasoningEngine:
     the call.
     """
 
-    def __init__(self, client: Optional[FeatherlessClient] = None) -> None:
-        self.client = client or FeatherlessClient()
+    def __init__(
+        self,
+        client: Optional[FeatherlessClient] = None,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        self.client = client or FeatherlessClient(enabled=enabled)
 
     @property
     def enabled(self) -> bool:
