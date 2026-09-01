@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { API_BASE } from "@/lib/api";
-import { Card, Pill, Section } from "./chrome";
+import { Section } from "./chrome";
 
 const BREAKERS: [number, string, string][] = [
   [1, "defined_risk_structure", "every short covered by a long of the same right"],
@@ -27,14 +27,16 @@ const NAKED_CALL = {
 };
 
 interface Breaker { id: number; name: string; passed: boolean; detail: string }
+interface Verdict { approved: boolean; elapsed_us: number; breakers: Breaker[]; reason: string }
 
 export function Gate() {
-  const [result, setResult] = useState<{ approved: boolean; elapsed_us: number; breakers: Breaker[] } | null>(null);
+  const [result, setResult] = useState<Verdict | null>(null);
   const [busy, setBusy] = useState(false);
   const [offline, setOffline] = useState(false);
 
   const probe = async () => {
     setBusy(true);
+    setResult(null);
     try {
       const r = await fetch(`${API_BASE}/api/risk/evaluate`, {
         method: "POST",
@@ -42,6 +44,9 @@ export function Gate() {
         body: JSON.stringify(NAKED_CALL),
       });
       if (!r.ok) throw new Error();
+      // A hold just long enough that the verdict reads as an event rather than
+      // appearing to have been there all along.
+      await new Promise((res) => setTimeout(res, 260));
       setResult(await r.json());
       setOffline(false);
     } catch {
@@ -51,79 +56,133 @@ export function Gate() {
     }
   };
 
+  const failed = result?.breakers.filter((b) => !b.passed) ?? [];
+
   return (
     <Section
       id="gate"
       eyebrow="The risk gate"
-      title="Twelve breakers. No network, no prompt, microseconds."
-      lead="Single-digit microseconds per evaluation — the button below reports the real figure from this machine. risk_gate.py imports nothing but the standard library. Given the same proposal and the same book it returns the same verdict, forever. It fails closed on anything malformed, runs all twelve even after one fails so the audit trail stays complete, and has no code path that can widen a limit or increase a size."
-      center
+      title={
+        <>
+          Twelve breakers.
+          <br />
+          <span className="text-muted">No network, no prompt, no model.</span>
+        </>
+      }
+      lead="risk_gate.py imports nothing but the standard library. Given the same proposal and the same book it returns the same verdict, forever."
     >
-      <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
-        <button
-          onClick={probe}
-          disabled={busy}
-          className="rounded-lg border border-loss/45 bg-loss/10 px-5 py-2.5 font-mono text-[12px] font-bold uppercase tracking-wider text-loss transition-colors hover:bg-loss/20 disabled:opacity-40"
-        >
-          {busy ? "evaluating…" : "▸ Fire a naked call at the live gate"}
-        </button>
-        {result && (
-          <span className="font-mono text-[11.5px] text-muted">
-            <span className="font-bold text-loss">VETOED</span> in {result.elapsed_us.toFixed(2)} µs ·{" "}
-            {result.breakers.filter((b) => !b.passed).length} of 12 tripped
-          </span>
-        )}
-        {offline && <Pill tone="warn">desk offline — start it with python main.py</Pill>}
-      </div>
+      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        {/* ── the probe ──────────────────────────────────────────────── */}
+        <div className="flex flex-col rounded-xl border border-ink-line bg-ink-card p-6">
+          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+            Test it yourself
+          </div>
+          <p className="mt-3 font-sans text-[13.5px] leading-[1.7] text-muted">
+            This sends a genuinely hostile order to the gate running right now: a 10-lot naked NVDA
+            call carrying <span className="text-body">$15,000 of undefined downside</span>. Nothing
+            is routed and no state changes.
+          </p>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {BREAKERS.map(([id, name, limit]) => {
-          const hit = result?.breakers.find((b) => b.id === id);
-          const failed = hit && !hit.passed;
-          return (
-            <div
-              key={id}
-              className={`rounded-lg border p-4 transition-colors duration-300 ${
-                failed ? "border-loss/50 bg-loss/[0.07]" : result ? "border-gain/25 bg-ink-card" : "border-ink-line bg-ink-card"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] text-faint">{String(id).padStart(2, "0")}</span>
-                <span className={`font-mono text-[11.5px] font-semibold ${failed ? "text-loss" : "text-body"}`}>
+          <button
+            onClick={probe}
+            disabled={busy}
+            className="mt-5 w-full rounded-lg border border-loss/45 bg-loss/10 px-5 py-3 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-loss transition-colors hover:bg-loss/20 disabled:opacity-40"
+          >
+            {busy ? "evaluating…" : "▸ Fire a naked call at the gate"}
+          </button>
+
+          {/* Reserved height so the layout does not jump when the verdict lands. */}
+          <div className="mt-5 min-h-[168px] rounded-lg border border-ink-line bg-ink p-4 font-mono text-[11.5px]">
+            {offline ? (
+              <span className="text-warn">
+                desk unreachable — start it with <span className="text-body">python main.py</span>
+              </span>
+            ) : busy ? (
+              <span className="text-faint">running twelve breakers…</span>
+            ) : result ? (
+              <div className="animate-rise">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[15px] font-bold text-loss">VETOED</span>
+                  <span className="tabular text-faint">
+                    {result.elapsed_us.toFixed(2)} µs
+                  </span>
+                </div>
+                <div className="mt-1 text-faint">
+                  {failed.length} of {result.breakers.length} breakers tripped
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {failed.slice(0, 4).map((b) => (
+                    <li key={b.id} className="flex gap-2 leading-snug">
+                      <span className="text-loss">✗</span>
+                      <span className="text-loss/90">{b.name}</span>
+                    </li>
+                  ))}
+                  {failed.length > 4 && (
+                    <li className="text-faint">+{failed.length - 4} more</li>
+                  )}
+                </ul>
+              </div>
+            ) : (
+              <span className="text-faint">
+                awaiting a proposal — the verdict and its timing appear here
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ── the twelve ─────────────────────────────────────────────── */}
+        <ol className="divide-y divide-ink-line overflow-hidden rounded-xl border border-ink-line bg-ink-card">
+          {BREAKERS.map(([id, name, limit]) => {
+            const hit = result?.breakers.find((b) => b.id === id);
+            const tripped = hit && !hit.passed;
+            const cleared = hit && hit.passed;
+            return (
+              <li
+                key={id}
+                className={`flex items-baseline gap-3 px-5 py-[11px] transition-colors duration-500 ${
+                  tripped ? "bg-loss/[0.08]" : ""
+                }`}
+              >
+                <span className="w-5 shrink-0 font-mono text-[10px] text-faint">
+                  {String(id).padStart(2, "0")}
+                </span>
+                <span
+                  className={`w-52 shrink-0 font-mono text-[11.5px] ${
+                    tripped ? "font-semibold text-loss" : "text-body"
+                  }`}
+                >
                   {name}
                 </span>
-                {result && (
-                  <span className={`ml-auto text-[12px] ${failed ? "text-loss" : "text-gain"}`}>
-                    {failed ? "✗" : "✓"}
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 font-sans text-[12.5px] leading-[1.6] text-muted">
-                {failed ? hit!.detail : limit}
-              </p>
-            </div>
-          );
-        })}
+                <span className="flex-1 font-sans text-[12.5px] leading-snug text-muted">
+                  {tripped ? hit!.detail : limit}
+                </span>
+                <span
+                  className={`w-4 shrink-0 text-right text-[12px] transition-opacity duration-500 ${
+                    hit ? "opacity-100" : "opacity-0"
+                  } ${tripped ? "text-loss" : "text-gain"}`}
+                >
+                  {tripped ? "✗" : cleared ? "✓" : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       </div>
 
-      {result && (
-        <p className="mx-auto mt-8 max-w-2xl text-center font-sans text-[13.5px] leading-[1.7] text-muted">
-          That was a real request to the running gate: a 10-lot naked NVDA call carrying $15,000 of
-          undefined downside. It was refused before anything could reach a broker, and every breaker
-          result — pass and fail — was written to the hash-chained ledger.
-        </p>
-      )}
-
-      <div className="mt-10 grid gap-4 md:grid-cols-3">
+      {/* ── the three properties ───────────────────────────────────────── */}
+      <div className="mt-4 grid gap-px overflow-hidden rounded-xl border border-ink-line bg-ink-line md:grid-cols-3">
         {[
-          ["Fails closed", "Every field is read with a pessimistic default. A missing max_loss is not zero, it is unbounded. NaN and infinity fail every comparison by design."],
-          ["Never short-circuits", "All twelve run even after one fails, because a veto naming only the first problem hides the rest from the audit trail."],
-          ["Sizes the trade itself", "max_contracts() derives position size from breakers 2, 5 and 6. The model never chooses size, and the gate can only shrink or refuse."],
+          ["Fails closed",
+           "Every field is read with a pessimistic default. A missing max_loss is not zero, it is unbounded. NaN and infinity fail every comparison by design."],
+          ["Never short-circuits",
+           "All twelve run even after one fails, because a veto naming only the first problem hides the rest from the audit trail."],
+          ["Sizes the trade itself",
+           "max_contracts() derives position size from breakers 2, 5 and 6. The model never chooses size, and the gate can only shrink or refuse."],
         ].map(([t, d]) => (
-          <Card key={t} className="p-6">
+          <div key={t} className="bg-ink-card p-6">
             <h3 className="font-mono text-[12px] font-bold text-gain">{t}</h3>
             <p className="mt-2.5 font-sans text-[13px] leading-[1.7] text-muted">{d}</p>
-          </Card>
+          </div>
         ))}
       </div>
     </Section>
