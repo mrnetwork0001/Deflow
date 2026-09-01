@@ -1,0 +1,14 @@
+{
+  "name": "deflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Autonomous multi-agent options desk on Alpaca paper trading. The dashboard lives in web/; the trading engine is Python (see requirements.txt).",
+  "license": "MIT",
+  "scripts": {
+    "install:web": "npm --prefix web install",
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web install && npm --prefix web run build",
+    "lint": "npm --prefix web run lint"
+  },
+  "workspaces": ["web"]
+}
