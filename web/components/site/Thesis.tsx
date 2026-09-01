@@ -6,7 +6,7 @@ import { PayoffDiagram } from "./visuals";
 
 export function Thesis() {
   return (
-    <section className="relative overflow-hidden border-t border-ink-line px-5 py-28">
+    <section className="relative overflow-hidden border-t border-ink-line px-6 py-28">
       <div aria-hidden className="grid-bg pointer-events-none absolute inset-0 opacity-30" />
       <div className="relative mx-auto max-w-content">
         <div className="flex justify-center"><Mark size={40} /></div>

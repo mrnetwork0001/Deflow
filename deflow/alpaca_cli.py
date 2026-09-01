@@ -245,6 +245,9 @@ class AlpacaCLI:
             args.append("--dry-run")
         return self._run(args)
 
+    def get_order(self, order_id: str) -> CliResult:
+        return self._run(["order", "get", order_id])
+
     def cancel_order(self, order_id: str) -> CliResult:
         return self._run(["order", "cancel", order_id])
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 from risk_gate import DeterministicRiskGate, PortfolioState
@@ -212,6 +212,93 @@ class OpenPosition:
 
 
 @dataclass
+class PendingOrder:
+    """A submitted order that has not been confirmed filled.
+
+    The distinction this type exists to make: Alpaca accepting an order is not
+    the same as holding a position. Deflow sends multi-leg LIMIT orders a few
+    percent through the mid, and those routinely rest unfilled -- a wide spread
+    may never trade at the price asked. Booking on acceptance meant the desk
+    could believe it held six structures it did not own, refuse to open
+    anything further because it thought it was at its position cap, and report
+    P&L on trades that never happened.
+
+    Pending orders still consume risk budget while they are live, because they
+    might fill at any moment; what they do not do is count as positions.
+    """
+
+    proposal: SpreadProposal
+    order_id: str
+    submitted_at: str
+    limit_price: float
+    simulated: bool = False
+    status: str = "new"
+    checks: int = 0
+
+    @property
+    def id(self) -> str:
+        return self.proposal.proposal_id
+
+    @property
+    def symbol(self) -> str:
+        return self.proposal.symbol
+
+    @property
+    def max_loss(self) -> float:
+        return self.proposal.max_loss
+
+    def age_seconds(self, now: Optional[datetime] = None) -> float:
+        try:
+            started = datetime.fromisoformat(self.submitted_at)
+        except (TypeError, ValueError):
+            return 0.0
+        now = now or datetime.now(timezone.utc)
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        return max((now - started).total_seconds(), 0.0)
+
+    def to_state(self) -> Dict[str, Any]:
+        return {
+            "order_id": self.order_id,
+            "submitted_at": self.submitted_at,
+            "limit_price": self.limit_price,
+            "simulated": self.simulated,
+            "status": self.status,
+            "checks": self.checks,
+            "position": OpenPosition(
+                proposal=self.proposal,
+                entry_premium=self.proposal.net_premium,
+                entry_at=self.submitted_at,
+            ).to_state(),
+        }
+
+    @staticmethod
+    def from_state(d: Dict[str, Any]) -> "PendingOrder":
+        restored = OpenPosition.from_state(d["position"])
+        return PendingOrder(
+            proposal=restored.proposal,
+            order_id=d.get("order_id", ""),
+            submitted_at=d.get("submitted_at", ""),
+            limit_price=float(d.get("limit_price", 0.0)),
+            simulated=bool(d.get("simulated", False)),
+            status=d.get("status", "new"),
+            checks=int(d.get("checks", 0)),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = self.proposal.to_dict()
+        d.update({
+            "order_id": self.order_id,
+            "submitted_at": self.submitted_at,
+            "limit_price": round(self.limit_price, 2),
+            "status": self.status,
+            "age_seconds": round(self.age_seconds(), 1),
+            "simulated": self.simulated,
+        })
+        return d
+
+
+@dataclass
 class ClosedPosition:
     position: OpenPosition
     realized_pnl: float
@@ -253,6 +340,7 @@ class Portfolio:
         self.start_of_day_equity = starting_equity
         self.cash_pnl = 0.0
         self.open: Dict[str, OpenPosition] = {}
+        self.pending: Dict[str, PendingOrder] = {}
         self.closed: List[ClosedPosition] = []
         self._path = DATA_DIR / "positions.json"
 
@@ -272,7 +360,16 @@ class Portfolio:
 
     @property
     def capital_at_risk(self) -> float:
-        return sum(p.max_loss for p in self.open.values())
+        """Risk already committed, including orders still working.
+
+        A resting limit order can fill at any moment, so its defined loss is
+        capital the desk has already spoken for. Excluding it would let the
+        gate authorise a book that breaches its own ceiling the instant the
+        working orders trade.
+        """
+        return sum(p.max_loss for p in self.open.values()) + sum(
+            o.max_loss for o in self.pending.values()
+        )
 
     @property
     def day_pnl(self) -> float:
@@ -282,6 +379,8 @@ class Portfolio:
         out: Dict[str, float] = {}
         for p in self.open.values():
             out[p.symbol] = out.get(p.symbol, 0.0) + p.max_loss
+        for o in self.pending.values():
+            out[o.symbol] = out.get(o.symbol, 0.0) + o.max_loss
         return out
 
     def net_delta(self) -> float:
@@ -294,7 +393,7 @@ class Portfolio:
         """The immutable snapshot the risk gate reads."""
         return PortfolioState(
             equity=self.equity,
-            open_positions=len(self.open),
+            open_positions=len(self.open) + len(self.pending),
             total_capital_at_risk=self.capital_at_risk,
             net_delta=self.net_delta(),
             net_vega=self.net_vega(),
@@ -305,10 +404,56 @@ class Portfolio:
 
     # -- lifecycle ----------------------------------------------------------
 
-    def add(self, proposal: SpreadProposal, order_id: str = "", simulated: bool = False) -> OpenPosition:
+    def add_pending(
+        self, proposal: SpreadProposal, order_id: str, limit_price: float, simulated: bool = False
+    ) -> PendingOrder:
+        """Record a working order. It is not a position until it fills."""
+        order = PendingOrder(
+            proposal=proposal,
+            order_id=order_id,
+            submitted_at=utcnow(),
+            limit_price=limit_price,
+            simulated=simulated,
+        )
+        self.pending[order.id] = order
+        self.save()
+        return order
+
+    def confirm_fill(
+        self, proposal_id: str, filled_price: Optional[float] = None
+    ) -> Optional[OpenPosition]:
+        """Promote a working order to a position, at the price it actually got."""
+        order = self.pending.pop(proposal_id, None)
+        if order is None:
+            return None
+        position = self.add(
+            order.proposal,
+            order_id=order.order_id,
+            simulated=order.simulated,
+            entry_premium=filled_price,
+        )
+        return position
+
+    def drop_pending(self, proposal_id: str, reason: str) -> Optional[PendingOrder]:
+        """Discard a working order that will never become a position."""
+        order = self.pending.pop(proposal_id, None)
+        if order is not None:
+            log.info("Dropped working order %s (%s): %s", proposal_id, order.symbol, reason)
+            self.save()
+        return order
+
+    def add(
+        self,
+        proposal: SpreadProposal,
+        order_id: str = "",
+        simulated: bool = False,
+        entry_premium: Optional[float] = None,
+    ) -> OpenPosition:
         position = OpenPosition(
             proposal=proposal,
-            entry_premium=proposal.net_premium,
+            # Prefer the price the order actually filled at over the mid the
+            # structurer priced it from; P&L is measured against what was paid.
+            entry_premium=entry_premium if entry_premium is not None else proposal.net_premium,
             entry_at=utcnow(),
             order_id=order_id,
             simulated=simulated,
@@ -406,6 +551,7 @@ class Portfolio:
                         # Lossless state for restore, plus the display shape so
                         # the file stays readable by eye.
                         "open": [p.to_state() for p in self.open.values()],
+                        "pending": [o.to_state() for o in self.pending.values()],
                         "closed": [c.to_state() for c in self.closed],
                         "open_readable": [p.to_dict() for p in self.open.values()],
                     },
@@ -454,6 +600,14 @@ class Portfolio:
             self.open[position.id] = position
             restored += 1
 
+        for record in saved.get("pending", []):
+            try:
+                order = PendingOrder.from_state(record)
+            except (KeyError, ValueError, TypeError) as exc:
+                log.error("Could not restore working order: %s", exc)
+                continue
+            self.pending[order.id] = order
+
         for record in saved.get("closed", []):
             try:
                 self.closed.append(ClosedPosition.from_state(record))
@@ -468,7 +622,7 @@ class Portfolio:
         else:
             self.start_of_day_equity = self.equity
 
-        detail = f"{restored} open, {len(self.closed)} closed"
+        detail = f"{restored} open, {len(self.pending)} working, {len(self.closed)} closed"
         if failed:
             detail += f", {failed} UNRESTORABLE — check the broker manually"
         log.info("Restored book: %s", detail)
@@ -495,4 +649,4 @@ class Portfolio:
         }
 
 
-__all__ = ["ClosedPosition", "OpenPosition", "Portfolio"]
+__all__ = ["ClosedPosition", "OpenPosition", "PendingOrder", "Portfolio"]

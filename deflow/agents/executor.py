@@ -327,6 +327,55 @@ class ExecutionAgent:
             **base,
         )
 
+    # -- fill reconciliation ------------------------------------------------
+
+    def order_status(self, order_id: str) -> Dict[str, Any]:
+        """Current state of a submitted order.
+
+        Returns {status, filled_qty, filled_avg_price, found}. `submitted` only
+        ever meant the broker accepted the request; whether a position exists
+        is a separate question that has to be asked.
+        """
+        if not order_id or order_id.startswith("sim-"):
+            # A locally simulated fill is, by construction, filled.
+            return {"status": "filled", "filled_qty": None, "filled_avg_price": None, "found": True}
+
+        data: Optional[Dict[str, Any]] = None
+        if self.cli and self.cli.available and self.cli.settings.has_alpaca_credentials:
+            result = self.cli.get_order(order_id)
+            if result.ok and isinstance(result.data, dict):
+                data = result.data
+        if data is None and self.rest is not None:
+            result = self.rest.get_order(order_id)
+            if result.ok and isinstance(result.data, dict):
+                data = result.data
+
+        if data is None:
+            return {"status": "unknown", "filled_qty": None, "filled_avg_price": None, "found": False}
+
+        def _f(key: str) -> Optional[float]:
+            try:
+                return float(data[key]) if data.get(key) not in (None, "") else None
+            except (TypeError, ValueError):
+                return None
+
+        return {
+            "status": str(data.get("status", "unknown")),
+            "filled_qty": _f("filled_qty"),
+            "filled_avg_price": _f("filled_avg_price"),
+            "found": True,
+        }
+
+    def cancel(self, order_id: str) -> bool:
+        if not order_id or order_id.startswith("sim-"):
+            return True
+        if self.cli and self.cli.available and self.cli.settings.has_alpaca_credentials:
+            if self.cli.cancel_order(order_id).ok:
+                return True
+        if self.rest is not None:
+            return bool(self.rest.cancel_order(order_id).ok)
+        return False
+
     # -- exits --------------------------------------------------------------
 
     def close(self, proposal: SpreadProposal, reason: str) -> ExecutionResult:

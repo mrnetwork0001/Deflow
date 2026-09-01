@@ -38,7 +38,7 @@ export function Nav() {
         solid ? "border-b border-ink-line bg-ink/85 backdrop-blur-xl" : "border-b border-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-content items-center justify-between px-5 py-3.5">
+      <div className="mx-auto flex max-w-content items-center justify-between px-6 py-3.5">
         <Link href="/" className="group flex items-center gap-2.5">
           <Mark size={26} />
           <span className="font-mono text-[13px] font-bold tracking-tight text-body">DEFLOW</span>

@@ -29,7 +29,9 @@ const config: Config = {
           "Helvetica Neue", "Arial", "sans-serif",
         ],
       },
-      maxWidth: { content: "1180px", prose: "680px" },
+      // Gutters reduced 30%: at 1920px a 1200px cap left ~360px either side,
+      // 1416px leaves ~252px.
+      maxWidth: { content: "1416px", prose: "710px" },
       letterSpacing: { tightest: "-0.035em" },
       keyframes: {
         rise: {

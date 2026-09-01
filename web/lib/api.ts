@@ -47,8 +47,16 @@ export interface Performance {
 
 export interface Breaker { id: number; name: string; passed: boolean; detail: string; observed: number | null; limit: number | null; }
 
+export interface WorkingOrder {
+  proposal_id: string; symbol: string; strategy: string; contracts: number;
+  order_id: string; limit_price: number; status: string; age_seconds: number;
+  max_loss: number; simulated: boolean;
+}
+
 export interface Status {
   mode: string;
+  market_open?: boolean;
+  working_orders?: WorkingOrder[];
   simulated_market_data: boolean;
   universe: string[];
   cycles_run: number;

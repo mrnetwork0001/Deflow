@@ -39,6 +39,11 @@ from .portfolio import Portfolio
 
 log = logging.getLogger("deflow.desk")
 
+# How long a limit order may rest before the desk withdraws it. A limit
+# priced off a twenty-minute-old quote is no longer the trade the gate
+# approved, and it reserves risk budget while it waits.
+STALE_ORDER_SECONDS = 900
+
 
 @dataclass
 class SymbolOutcome:
@@ -70,6 +75,7 @@ class CycleReport:
     mode: str = "simulation"
     outcomes: List[SymbolOutcome] = field(default_factory=list)
     exits: List[Dict[str, Any]] = field(default_factory=list)
+    fills: List[Dict[str, Any]] = field(default_factory=list)
     performance: Dict[str, Any] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
 
@@ -91,6 +97,7 @@ class CycleReport:
             "orders_submitted": self.orders_submitted,
             "vetoed": self.vetoed,
             "exits": self.exits,
+            "fills": self.fills,
             "outcomes": [o.to_dict() for o in self.outcomes],
             "performance": self.performance,
             "errors": self.errors,
@@ -169,7 +176,14 @@ class TradingDesk:
             log.info("Market closed (%s); skipping cycle", why)
             return report
 
-        # --- 0. Manage what is already open --------------------------------
+        # --- 0a. Turn working orders into positions, or discard them -------
+        try:
+            report.fills = self._reconcile_fills()
+        except Exception as exc:
+            log.exception("Fill reconciliation failed")
+            report.errors.append(f"fill reconciliation: {exc}")
+
+        # --- 0b. Manage what is already open -------------------------------
         try:
             report.exits = self._manage_open_positions()
         except Exception as exc:
@@ -319,14 +333,21 @@ class TradingDesk:
                                  **execution.to_dict()})
 
         if execution.submitted:
-            self.portfolio.add(proposal, order_id=execution.order_id, simulated=execution.simulated)
+            # Working order, not a position. It becomes one only when Alpaca
+            # confirms a fill -- see _reconcile_fills().
+            self.portfolio.add_pending(
+                proposal,
+                order_id=execution.order_id,
+                limit_price=execution.limit_price,
+                simulated=execution.simulated,
+            )
 
         return SymbolOutcome(
             symbol,
             "execution",
             execution.submitted,
             (
-                f"Routed {proposal.contracts}x {proposal.strategy.value} via {execution.route}"
+                f"Working {proposal.contracts}x {proposal.strategy.value} via {execution.route}"
                 if execution.submitted
                 else (
                     f"Dry run: {proposal.contracts}x {proposal.strategy.value} rendered "
@@ -341,6 +362,74 @@ class TradingDesk:
         )
 
     # -- open positions ------------------------------------------------------
+
+    def _reconcile_fills(self) -> List[Dict[str, Any]]:
+        """Ask the broker what actually happened to every working order.
+
+        `submitted` only ever meant Alpaca accepted the request. Deflow sends
+        multi-leg LIMIT orders a few percent through the mid, and on a wide
+        spread those can rest all session without trading. Treating acceptance
+        as ownership let the desk believe it held structures it did not own,
+        stop trading because it thought it was at its position cap, and report
+        P&L on fills that never occurred.
+
+        Orders still working past STALE_ORDER_SECONDS are cancelled rather than
+        left resting: a limit priced off a quote from twenty minutes ago is no
+        longer the trade the gate approved, and holding it reserves risk
+        budget that could be doing something.
+        """
+        if not self.portfolio.pending:
+            return []
+
+        outcomes: List[Dict[str, Any]] = []
+        for order in list(self.portfolio.pending.values()):
+            state = self.executor.order_status(order.order_id)
+            status = state["status"]
+            order.status = status
+            order.checks += 1
+
+            record = {
+                "proposal_id": order.id,
+                "symbol": order.symbol,
+                "order_id": order.order_id,
+                "status": status,
+                "age_seconds": round(order.age_seconds(), 1),
+            }
+
+            if status == "filled":
+                filled = state.get("filled_avg_price")
+                # Alpaca reports a multi-leg fill as the net package price, in
+                # the same sign convention the order used.
+                position = self.portfolio.confirm_fill(order.id, filled)
+                record["outcome"] = "filled"
+                record["filled_price"] = filled
+                if position is not None:
+                    record["entry_premium"] = round(position.entry_premium, 4)
+
+            elif status in {"canceled", "cancelled", "expired", "rejected", "suspended"}:
+                self.portfolio.drop_pending(order.id, status)
+                record["outcome"] = "dead"
+
+            elif not state["found"]:
+                # The broker has no record of it. Never assume a fill from
+                # silence -- release the reserved risk instead.
+                self.portfolio.drop_pending(order.id, "not found at broker")
+                record["outcome"] = "not_found"
+
+            elif order.age_seconds() > STALE_ORDER_SECONDS:
+                cancelled = self.executor.cancel(order.order_id)
+                self.portfolio.drop_pending(order.id, f"stale after {order.age_seconds():.0f}s")
+                record["outcome"] = "cancelled_stale"
+                record["cancel_ok"] = cancelled
+
+            else:
+                record["outcome"] = "working"
+
+            outcomes.append(record)
+            if record["outcome"] != "working":
+                self._emit("fill", record)
+
+        return outcomes
 
     def _manage_open_positions(self) -> List[Dict[str, Any]]:
         """Mark the book, then close anything the exit guard flags."""
@@ -398,6 +487,7 @@ class TradingDesk:
             },
             "risk_envelope": self.gate.envelope(),
             "performance": self.portfolio.performance(),
+            "working_orders": [o.to_dict() for o in self.portfolio.pending.values()],
             "ledger": {"entries": len(self.ledger), "head": self.ledger.head[:16], **chain.to_dict()},
             "last_cycle": self.last_report.to_dict() if self.last_report else None,
         }

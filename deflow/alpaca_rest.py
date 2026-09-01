@@ -264,6 +264,17 @@ class AlpacaClient:
     def submit_mleg_order(self, payload: Dict[str, Any]) -> ApiResult:
         return self._trading("POST", "/v2/orders", json=payload)
 
+    def get_order(self, order_id: str, nested: bool = True) -> ApiResult:
+        """One order by id, with its legs.
+
+        `status` here is the difference between an order Alpaca accepted and a
+        position that exists. A multi-leg limit order sits `new` until it
+        fills, and may never fill at all.
+        """
+        return self._trading(
+            "GET", f"/v2/orders/{order_id}", params={"nested": str(nested).lower()}
+        )
+
     def cancel_order(self, order_id: str) -> ApiResult:
         return self._trading("DELETE", f"/v2/orders/{order_id}")
 

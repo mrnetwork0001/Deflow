@@ -162,7 +162,11 @@ export default function Dashboard() {
 
       {/* ---- Positions + stream ------------------------------------------ */}
       <div className="mb-4 grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <PositionsTable open={positions.open} closed={positions.closed} />
+        <PositionsTable
+          open={positions.open}
+          closed={positions.closed}
+          working={status?.working_orders ?? []}
+        />
         <EventStream />
       </div>
 

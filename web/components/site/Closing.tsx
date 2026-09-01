@@ -5,7 +5,7 @@ import { ButtonLink, GITHUB_URL, Mark } from "./chrome";
 
 export function CTA() {
   return (
-    <section className="relative overflow-hidden border-t border-ink-line px-5 py-28">
+    <section className="relative overflow-hidden border-t border-ink-line px-6 py-28">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="grid-bg absolute inset-0 opacity-30" />
         <div className="absolute left-1/2 top-0 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-gain/[0.07] blur-[110px]" />
@@ -54,7 +54,7 @@ const COLUMNS: [string, [string, string, boolean?][]][] = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-ink-line px-5 py-14">
+    <footer className="border-t border-ink-line px-6 py-14">
       <div className="mx-auto max-w-content">
         <div className="grid gap-10 lg:grid-cols-[1.6fr_repeat(3,1fr)]">
           <div className="max-w-sm">

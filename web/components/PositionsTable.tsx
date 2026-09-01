@@ -1,14 +1,39 @@
 "use client";
 
-import { Position, money, pct, signedMoney } from "@/lib/api";
+import { Position, WorkingOrder, money, pct, signedMoney } from "@/lib/api";
 import { Badge, Empty, Panel } from "./ui";
 
-export function PositionsTable({ open, closed }: { open: Position[]; closed: Position[] }) {
+export function PositionsTable({
+  open, closed, working = [],
+}: { open: Position[]; closed: Position[]; working?: WorkingOrder[] }) {
   return (
     <Panel
       title="Open structures"
-      right={<Badge tone={open.length ? "info" : "muted"}>{open.length} live · {closed.length} closed</Badge>}
+      right={
+        <Badge tone={open.length ? "info" : "muted"}>
+          {open.length} live · {working.length} working · {closed.length} closed
+        </Badge>
+      }
     >
+      {working.length > 0 && (
+        <div className="mb-4 rounded-lg border border-warn/30 bg-warn/[0.05] p-3">
+          <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-warn">
+            Working orders — submitted, not yet filled
+          </div>
+          <ul className="space-y-1">
+            {working.map((w) => (
+              <li key={w.proposal_id} className="flex flex-wrap items-baseline gap-x-3 font-mono text-[10.5px]">
+                <span className="w-12 font-bold text-body">{w.symbol}</span>
+                <span className="text-muted">{w.strategy.replace(/_/g, " ")} ×{w.contracts}</span>
+                <span className="tabular text-faint">@ {w.limit_price.toFixed(2)} net</span>
+                <span className="tabular ml-auto text-faint">
+                  {w.status} · {Math.round(w.age_seconds)}s
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {open.length === 0 ? (
         <Empty>No open positions. The desk trades only when it measures an edge.</Empty>
       ) : (

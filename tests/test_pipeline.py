@@ -964,3 +964,165 @@ def test_missing_or_corrupt_book_starts_flat_without_crashing(tmp_path, monkeypa
     assert portfolio_module.Portfolio(gate, 100_000.0).load()["restored"] == 0
     (tmp_path / "positions.json").write_text("{ not json")
     assert portfolio_module.Portfolio(gate, 100_000.0).load()["restored"] == 0
+
+
+# --------------------------------------------------------------------------
+# A submitted order is not a position
+# --------------------------------------------------------------------------
+
+class _FakeExecutor(ExecutionAgent):
+    """Executor whose broker answers whatever the test says it does."""
+
+    def __init__(self, gate, statuses):
+        super().__init__(gate, preferred_route="paper")
+        self.statuses = statuses
+        self.cancelled: list[str] = []
+
+    def order_status(self, order_id):
+        return self.statuses.get(order_id, {"status": "new", "filled_qty": None,
+                                            "filled_avg_price": None, "found": True})
+
+    def cancel(self, order_id):
+        self.cancelled.append(order_id)
+        return True
+
+
+def _isolate(desk):
+    """Keep one working order and discard the rest.
+
+    A cycle opens orders across several symbols; these tests are about the
+    lifecycle of a single one, so the others would otherwise pollute
+    book-level assertions.
+    """
+    keep = next(iter(desk.portfolio.pending.values()))
+    for pid in list(desk.portfolio.pending):
+        if pid != keep.id:
+            desk.portfolio.pending.pop(pid)
+    return keep
+
+
+def _desk_with(tmp_path, monkeypatch, executor):
+    import deflow.ledger as ledger_module
+    import deflow.portfolio as portfolio_module
+
+    for module in (ledger_module, portfolio_module):
+        monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+    provider = SimulatedMarketData()
+    provider.is_market_open = lambda: (True, "")
+    gate = executor.gate
+    return TradingDesk(
+        provider=provider, gate=gate, portfolio=Portfolio(gate, 100_000.0),
+        executor=executor, ledger=ledger_module.DecisionLedger("f.jsonl"),
+        settings=Settings(),
+    )
+
+
+def test_submitted_order_is_pending_not_a_position(tmp_path, monkeypatch):
+    """Alpaca accepting a limit order does not mean it traded."""
+    gate = DeterministicRiskGate(100_000.0)
+    ex = _FakeExecutor(gate, {})
+    desk = _desk_with(tmp_path, monkeypatch, ex)
+    desk.run_cycle()
+
+    assert desk.portfolio.pending, "an order should be working"
+    assert not desk.portfolio.open, "nothing may be booked as a position before a fill"
+
+
+def test_working_orders_still_consume_risk_budget(tmp_path, monkeypatch):
+    """A resting order can fill at any moment, so its risk is already spoken for."""
+    gate = DeterministicRiskGate(100_000.0)
+    ex = _FakeExecutor(gate, {})
+    desk = _desk_with(tmp_path, monkeypatch, ex)
+    desk.run_cycle()
+
+    pf = desk.portfolio
+    assert pf.capital_at_risk > 0
+    assert pf.state().open_positions == len(pf.pending)
+    assert pf.capital_at_risk == pytest.approx(sum(o.max_loss for o in pf.pending.values()))
+
+
+def test_a_filled_order_becomes_a_position_at_its_fill_price(tmp_path, monkeypatch):
+    gate = DeterministicRiskGate(100_000.0)
+    ex = _FakeExecutor(gate, {})
+    desk = _desk_with(tmp_path, monkeypatch, ex)
+    desk.run_cycle()
+
+    order = _isolate(desk)
+    ex.statuses[order.order_id] = {
+        "status": "filled", "filled_qty": order.proposal.contracts,
+        "filled_avg_price": -1.23, "found": True,
+    }
+    desk._reconcile_fills()
+
+    assert order.id not in desk.portfolio.pending
+    assert order.id in desk.portfolio.open
+    assert desk.portfolio.open[order.id].entry_premium == pytest.approx(-1.23)
+
+
+@pytest.mark.parametrize("status", ["canceled", "expired", "rejected"])
+def test_a_dead_order_releases_its_risk(tmp_path, monkeypatch, status):
+    gate = DeterministicRiskGate(100_000.0)
+    ex = _FakeExecutor(gate, {})
+    desk = _desk_with(tmp_path, monkeypatch, ex)
+    desk.run_cycle()
+
+    order = _isolate(desk)
+    ex.statuses[order.order_id] = {"status": status, "filled_qty": 0,
+                                   "filled_avg_price": None, "found": True}
+    desk._reconcile_fills()
+
+    assert order.id not in desk.portfolio.pending
+    assert order.id not in desk.portfolio.open
+    assert desk.portfolio.capital_at_risk == 0.0, "a dead order must release its risk"
+
+
+def test_an_order_the_broker_does_not_know_is_never_assumed_filled(tmp_path, monkeypatch):
+    gate = DeterministicRiskGate(100_000.0)
+    ex = _FakeExecutor(gate, {})
+    desk = _desk_with(tmp_path, monkeypatch, ex)
+    desk.run_cycle()
+
+    order = _isolate(desk)
+    ex.statuses[order.order_id] = {"status": "unknown", "filled_qty": None,
+                                   "filled_avg_price": None, "found": False}
+    desk._reconcile_fills()
+
+    assert not desk.portfolio.open, "silence from the broker is not a fill"
+    assert order.id not in desk.portfolio.pending
+
+
+def test_a_stale_working_order_is_cancelled(tmp_path, monkeypatch):
+    """A limit priced off a 20-minute-old quote is not the approved trade."""
+    import deflow.desk as desk_module
+
+    gate = DeterministicRiskGate(100_000.0)
+    ex = _FakeExecutor(gate, {})
+    desk = _desk_with(tmp_path, monkeypatch, ex)
+    desk.run_cycle()
+
+    order = _isolate(desk)
+    order.submitted_at = "2020-01-01T00:00:00+00:00"      # long past
+    assert order.age_seconds() > desk_module.STALE_ORDER_SECONDS
+
+    desk._reconcile_fills()
+    assert order.order_id in ex.cancelled
+    assert order.id not in desk.portfolio.pending
+
+
+def test_working_orders_survive_a_restart(tmp_path, monkeypatch):
+    """Forgetting a resting order means never reconciling it, and never
+    releasing the risk it reserved."""
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+    p = _spread(contracts=3)
+    p.proposal_id = "w1"
+    pf.add_pending(p, order_id="ord-9", limit_price=-1.10)
+
+    after = portfolio_module.Portfolio(gate, 100_000.0)
+    after.load()
+    assert "w1" in after.pending
+    assert after.pending["w1"].order_id == "ord-9"
+    assert after.capital_at_risk == pytest.approx(p.max_loss)

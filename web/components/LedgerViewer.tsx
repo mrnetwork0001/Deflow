@@ -13,6 +13,10 @@ const EVENTS = [
 
 const LIMITS = [50, 200, 500] as const;
 
+/** Rows per page. Small enough that an entry stays readable without
+ *  scrolling past it, which matters when each row can be expanded. */
+const PAGE_SIZE = 12;
+
 // Same colour vocabulary as the live decision stream, so an event means the
 // same thing whichever panel you meet it in.
 const TONE: Record<string, string> = {
@@ -188,6 +192,7 @@ export function LedgerViewer() {
   const [limit, setLimit] = useState<number>(50);
   const [filter, setFilter] = useState<string>("all");
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
 
@@ -251,15 +256,32 @@ export function LedgerViewer() {
     }
   }, []);
 
+  // Changing the filter or window re-lists everything; staying on page 4 of a
+  // list that now has two pages shows an empty table.
+  useEffect(() => {
+    setPage(0);
+    setExpanded(null);
+  }, [filter, limit]);
+
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     // Refetching under someone who is reading an expanded entry would swap the
     // evidence out from under them, so the poll stops while a row is open.
-    if (expanded !== null) return;
+    // New entries land at the top, so a refresh shifts every later page by one.
+    // Pausing while the reader is off page 1 -- or has a row open -- keeps the
+    // thing they are looking at where they left it.
+    if (expanded !== null || page > 0) return;
     const id = setInterval(load, 20000);
     return () => clearInterval(id);
-  }, [expanded, load]);
+  }, [expanded, page, load]);
+
+  // Clamp rather than trust: a refresh can shorten the list under a reader who
+  // is on the last page.
+  const pageCount = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount - 1);
+  const start = current * PAGE_SIZE;
+  const visible = entries.slice(start, start + PAGE_SIZE);
 
   const offline = chain === null;
   const broken = chain !== null && !chain.valid;
@@ -411,7 +433,7 @@ export function LedgerViewer() {
               </div>
             )}
           <ul>
-            {entries.map((entry) => (
+            {visible.map((entry) => (
               <Row
                 key={`${entry.seq}-${entry.hash}`}
                 entry={entry}
@@ -420,16 +442,62 @@ export function LedgerViewer() {
               />
             ))}
           </ul>
+
+          {pageCount > 1 && (
+            <nav
+              className="mt-3 flex items-center justify-between gap-3 border-t border-ink-line pt-3"
+              aria-label="Ledger pages"
+            >
+              <button
+                onClick={() => { setPage(current - 1); setExpanded(null); }}
+                disabled={current === 0}
+                className="rounded-md border border-ink-hair px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted transition-colors hover:border-muted hover:text-body disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                ← Newer
+              </button>
+
+              <div className="flex items-center gap-3 font-mono text-[10.5px] text-faint">
+                <span className="tabular">
+                  {start + 1}–{Math.min(start + PAGE_SIZE, entries.length)} of {entries.length}
+                </span>
+                <span className="hidden items-center gap-1 sm:flex">
+                  {Array.from({ length: pageCount }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setPage(i); setExpanded(null); }}
+                      aria-label={`Page ${i + 1}`}
+                      aria-current={i === current ? "page" : undefined}
+                      className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                        i === current ? "bg-gain" : "bg-ink-hair hover:bg-muted"
+                      }`}
+                    />
+                  ))}
+                </span>
+              </div>
+
+              <button
+                onClick={() => { setPage(current + 1); setExpanded(null); }}
+                disabled={current >= pageCount - 1}
+                className="rounded-md border border-ink-hair px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted transition-colors hover:border-muted hover:text-body disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                Older →
+              </button>
+            </nav>
+          )}
           </>
         )}
       </div>
 
       <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-ink-line pt-2 text-[10px] text-faint">
         <span className="tabular">
-          {entries.length} shown
+          page {current + 1} of {pageCount} · {entries.length} fetched
           {total !== null && !stale ? ` · ${total.toLocaleString()} in the chain` : ""}
           {stale && seenAt ? ` · last confirmed ${seenAt}` : ""}
-          {expanded !== null ? " · polling paused while an entry is open" : " · refreshes every 20s"}
+          {expanded !== null
+            ? " · paused while an entry is open"
+            : current > 0
+              ? " · paused while paging"
+              : " · refreshes every 20s"}
         </span>
         <span>Append-only JSONL · SHA-256 per record · /api/ledger/verify</span>
       </footer>
