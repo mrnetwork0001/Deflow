@@ -14,7 +14,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
  * railCounts in page.tsx. A badge fed from a *different* response could disagree
  * with its visible neighbour, and only one of the two could be right.
  */
-const SECTIONS = [
+export const SECTIONS = [
   { id: "account", label: "Account", sub: null, count: null, unit: null },
   { id: "equity", label: "Equity", sub: null, count: null, unit: null },
   { id: "regime", label: "Regime", sub: "agent 1", count: "regime", unit: " tradeable of scanned" },

@@ -29,6 +29,7 @@ body {
 ::-webkit-scrollbar-thumb { background: #262b33; border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #39414d; }
 
+@keyframes drawerIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .live-dot { animation: pulse-dot 2s ease-in-out infinite; }
 

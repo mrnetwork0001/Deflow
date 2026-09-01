@@ -9,6 +9,7 @@ import { PositionsTable } from "@/components/PositionsTable";
 import { Refusals } from "@/components/Refusals";
 import { RegimeGrid } from "@/components/RegimeGrid";
 import { RiskGatePanel } from "@/components/RiskGatePanel";
+import { MobileMenu } from "@/components/MobileMenu";
 import { SectionRail } from "@/components/SectionRail";
 import { Badge, Meter, Panel } from "@/components/ui";
 import { PnlCard } from "@/components/PnlCard";
@@ -26,7 +27,10 @@ function BigStat({
       {/* A missing figure renders as an em dash, never as zero. This dashboard
           is the public face of a system whose argument is that unverified
           numbers are the enemy; showing $0.00 while data loads would be one. */}
-      <div className={`tabular mt-2 font-mono text-[30px] font-bold leading-none ${value ? tones[tone] : "text-faint"}`}>
+      {/* 30px mono puts eleven digits at ~200px; two of those side by side
+          overflow a phone and the figures physically collide. Scale with the
+          viewport instead of wrapping money across lines. */}
+      <div className={`tabular mt-2 font-mono text-[22px] font-bold leading-none sm:text-[30px] ${value ? tones[tone] : "text-faint"}`}>
         {value ?? "-"}
       </div>
       {sub && <div className="mt-2 font-mono text-[11px] text-muted">{sub}</div>}
@@ -219,7 +223,7 @@ export default function Dashboard() {
               dividers and no individual borders, so it reads as a readout
               rather than a row of things to press. Every one of these used to
               be a bordered pill identical to the buttons beside them. */}
-          <div className="flex items-stretch divide-x divide-ink-line overflow-hidden rounded-md border border-ink-line bg-ink-raised">
+          <div className="hidden items-stretch divide-x divide-ink-line overflow-hidden rounded-md border border-ink-line bg-ink-raised md:flex">
             {/* Both of these used to assert a mode before the desk had said
                 anything - "simulation" and "deterministic" are claims, and a
                 null status is not evidence for either. Same three-state shape
@@ -263,7 +267,7 @@ export default function Dashboard() {
           {/* ACTIONS - everything below is interactive and looks it. */}
           <Link
             href="/ledger/"
-            className={`group inline-flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gain/60 ${
+            className={`group hidden items-center gap-2 rounded-md border px-3 py-2 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gain/60 md:inline-flex ${
               status?.ledger.valid === false
                 ? "border-loss/45 bg-loss/10 text-loss hover:bg-loss/20"
                 : "border-ink-hair text-muted hover:border-muted hover:text-body"
@@ -287,6 +291,15 @@ export default function Dashboard() {
             )}
             {busy ? "running" : "Run cycle"}
           </button>
+
+          {/* Everything hidden above reappears inside this drawer. */}
+          <MobileMenu
+            status={status}
+            live={live}
+            equity={money$ ? money(money$.equity) : null}
+            pnl={money$ ? signedMoney(money$.total_pnl) : null}
+            pnlTone={money$ ? (money$.total_pnl >= 0 ? "gain" : "loss") : null}
+          />
         </div>
       </header>
 
@@ -381,7 +394,7 @@ export default function Dashboard() {
               className="mb-4"
             >
               <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid min-w-0 grid-cols-2 gap-4 sm:gap-6">
                   <BigStat
                     label="Equity"
                     value={money$ ? money(money$.equity) : null}
