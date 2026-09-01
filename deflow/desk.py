@@ -243,7 +243,7 @@ class TradingDesk:
             return checker()
         except Exception as exc:
             log.warning("Market clock check failed (%s); assuming open", exc)
-            return True, "clock check failed — assuming open"
+            return True, "clock check failed - assuming open"
 
     # -- per-symbol pipeline -------------------------------------------------
 
@@ -270,7 +270,7 @@ class TradingDesk:
             return SymbolOutcome(
                 symbol, "structurer", False,
                 f"No defined-risk structure expresses a {view.stance} stance on a "
-                f"{view.bias} tape — buying convexity needs a direction to pay for the theta.",
+                f"{view.bias} tape - buying convexity needs a direction to pay for the theta.",
                 view=view.to_dict(),
             )
 

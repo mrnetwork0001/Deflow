@@ -1,4 +1,4 @@
-"""Agent 3 — Adversarial Risk Auditor.
+"""Agent 3 - Adversarial Risk Auditor.
 
 This agent's job is to try to talk the desk *out* of the trade.
 
@@ -89,11 +89,11 @@ class AuditReport:
         if self.passed:
             ev = self.physical.mean_pnl if self.physical else 0.0
             return (
-                f"AUDIT PASS — EV {ev:+,.0f} USD at realised vol, "
+                f"AUDIT PASS - EV {ev:+,.0f} USD at realised vol, "
                 f"CVaR(5%) {self.physical.cvar_05:,.0f} USD, "
                 f"{len(self.warnings)} warning(s)."
             )
-        return f"AUDIT FAIL — {self.fatal[0].message}" if self.fatal else "AUDIT FAIL"
+        return f"AUDIT FAIL - {self.fatal[0].message}" if self.fatal else "AUDIT FAIL"
 
 
 class AdversarialRiskAuditor:
@@ -152,7 +152,7 @@ class AdversarialRiskAuditor:
                     "fatal",
                     f"Expected P&L at realised vol is {physical.mean_pnl:+,.0f} USD "
                     f"({physical.expected_value_ratio:+.1%} of capital at risk) despite a "
-                    f"{physical.prob_profit:.0%} win rate — the losing tail is larger than the wins.",
+                    f"{physical.prob_profit:.0%} win rate - the losing tail is larger than the wins.",
                 )
             )
 
@@ -178,7 +178,7 @@ class AdversarialRiskAuditor:
                     "assignment_risk",
                     "warning",
                     f"P(short leg finishes in the money) is {assignment:.0%}, above the "
-                    f"{MAX_ASSIGNMENT_PROB:.0%} comfort threshold — early assignment is plausible.",
+                    f"{MAX_ASSIGNMENT_PROB:.0%} comfort threshold - early assignment is plausible.",
                 )
             )
 

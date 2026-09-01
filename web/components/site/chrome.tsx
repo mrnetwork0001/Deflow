@@ -7,7 +7,7 @@ import { Reveal } from "./Reveal";
 
 export const GITHUB_URL = "https://github.com/mrnetwork0001/Deflow";
 
-/** The icon mark alone — a capped payoff diagram in a rounded square. */
+/** The icon mark alone - a capped payoff diagram in a rounded square. */
 export function Mark({ size = 24 }: { size?: number }) {
   return (
     // Plain <img>, not next/image: this is a static export with
@@ -38,7 +38,7 @@ export function Wordmark({ height = 30, className = "" }: { height?: number; cla
     <img
       src="/deflow-header.png"
       srcSet="/deflow-header.png 1x, /deflow-header@2x.png 2x"
-      alt="Deflow — autonomy, with limits."
+      alt="Deflow - autonomy, with limits."
       className={`select-none ${className}`}
       style={{ height, width: "auto" }}
     />

@@ -16,7 +16,7 @@ export function CTA() {
           Watch it refuse a trade.
         </h2>
         <p className="mx-auto mt-5 max-w-xl font-sans text-[16px] leading-[1.7] text-muted">
-          The desk streams every decision live — the regime read on eight names, the open book with
+          The desk streams every decision live - the regime read on eight names, the open book with
           Greeks, and a button that fires a naked call at the running risk gate.
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
@@ -24,7 +24,7 @@ export function CTA() {
           <ButtonLink href={GITHUB_URL} variant="ghost" external>Read the source</ButtonLink>
         </div>
         <p className="mt-8 font-mono text-[11.5px] text-faint">
-          One command from a bare clone —{" "}
+          One command from a bare clone -{" "}
           <span className="text-muted">python main.py</span>
         </p>
       </div>

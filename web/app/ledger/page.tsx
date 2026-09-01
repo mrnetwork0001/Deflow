@@ -31,7 +31,7 @@ export default function LedgerPage() {
       </header>
 
       <p className="mb-6 max-w-prose font-sans text-[13.5px] leading-[1.7] text-muted">
-        Every analyst view, proposal, audit, gate verdict, order and exit the desk has produced —
+        Every analyst view, proposal, audit, gate verdict, order and exit the desk has produced -
         including the ones that ended in a refusal to trade. Each entry carries the SHA-256 of the
         entry before it, so altering or deleting any historical record breaks the chain from that
         point forward. <span className="text-body">Verify it yourself below.</span>

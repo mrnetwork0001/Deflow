@@ -11,7 +11,7 @@ import React, { useEffect, useRef, useState } from "react";
  * a blank one. Opacity-0-in-CSS is the usual way this is done and the usual
  * way pages end up empty.
  *
- * Reveals once and then stops observing — re-animating on every scroll past is
+ * Reveals once and then stops observing - re-animating on every scroll past is
  * distracting on a page this long.
  */
 export function Reveal({
@@ -44,7 +44,7 @@ export function Reveal({
       return;
     }
 
-    // Anything already on screen at mount is shown immediately — animating the
+    // Anything already on screen at mount is shown immediately - animating the
     // hero on load would just delay the first paint of the thing people came
     // for.
     const rect = node.getBoundingClientRect();

@@ -8,7 +8,7 @@ import { LedgerEntry, getJSON } from "@/lib/api";
  *
  * Deliberately not a mockup. A marketing card showing a specific trade with
  * specific numbers asserts that the trade happened, and this project's whole
- * argument is that unverified claims are the enemy — so it reads the actual
+ * argument is that unverified claims are the enemy - so it reads the actual
  * ledger and, when there is nothing to show, says so rather than inventing a
  * plausible one.
  *
@@ -227,7 +227,7 @@ export function DecisionCard() {
               <div className="mt-2.5 leading-relaxed text-muted">
                 <span className="text-faint">verdict</span>{" "}
                 <span className={pass ? "text-gain" : "text-loss"}>
-                  {d!.breakersPassed ?? "—"}/{d!.breakersTotal ?? 12} breakers
+                  {d!.breakersPassed ?? "-"}/{d!.breakersTotal ?? 12} breakers
                 </span>
                 {micros !== null && (
                   <span className="tabular text-faint"> in {micros.toFixed(2)} µs</span>
@@ -242,7 +242,7 @@ export function DecisionCard() {
           ) : (
             <div className="text-[12px] leading-relaxed text-faint">
               {state === "offline"
-                ? "desk unreachable — nothing to show"
+                ? "desk unreachable - nothing to show"
                 : state === "empty"
                   ? "no decision recorded yet · the desk trades on US market hours"
                   : "loading recent decisions…"}
@@ -254,17 +254,17 @@ export function DecisionCard() {
         <dl className="space-y-2.5">
           <Metric
             label="max loss"
-            value={maxLoss != null ? `$${Math.round(maxLoss).toLocaleString()}` : "—"}
+            value={maxLoss != null ? `$${Math.round(maxLoss).toLocaleString()}` : "-"}
             fill={bars.loss} tone="loss" cap="2% cap" phase={phase} still={still}
           />
           <Metric
             label="probability of profit"
-            value={pop != null ? `${(pop * 100).toFixed(0)}%` : "—"}
+            value={pop != null ? `${(pop * 100).toFixed(0)}%` : "-"}
             fill={bars.pop} tone="gain" cap="65% floor" phase={phase} still={still}
           />
           <Metric
             label="net delta"
-            value={delta != null ? delta.toFixed(3) : "—"}
+            value={delta != null ? delta.toFixed(3) : "-"}
             fill={bars.delta} tone="info" cap="±0.35" phase={phase} still={still}
           />
         </dl>

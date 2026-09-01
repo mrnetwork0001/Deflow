@@ -1,4 +1,4 @@
-"""Agent 4 — Execution Agent.
+"""Agent 4 - Execution Agent.
 
 The only component that talks to the broker, and the last place a bad trade
 can be stopped.
@@ -328,7 +328,7 @@ class ExecutionAgent:
                 "limit_price": f"{limit_price:.2f}",
                 "legs": legs,
             },
-            raw_response={"note": "simulated fill — no Alpaca credentials configured"},
+            raw_response={"note": "simulated fill - no Alpaca credentials configured"},
             **base,
         )
 

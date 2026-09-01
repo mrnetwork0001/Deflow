@@ -806,7 +806,7 @@ class Portfolio:
 
         detail = f"{restored} open, {len(self.pending)} working, {len(self.closed)} closed"
         if failed:
-            detail += f", {failed} UNRESTORABLE — check the broker manually"
+            detail += f", {failed} UNRESTORABLE - check the broker manually"
         log.info("Restored book: %s", detail)
         return {"restored": restored, "failed": failed, "detail": detail}
 

@@ -25,7 +25,7 @@ const FAILURES = [
     title: "The results cannot be checked",
     body:
       "A log tells you what a system says it did. It does not tell you whether the story was "
-      + "edited afterwards, and it usually records only the fills — so the refusals, which are "
+      + "edited afterwards, and it usually records only the fills - so the refusals, which are "
       + "most of what a risk system does, leave no trace at all.",
   },
 ];
@@ -36,7 +36,7 @@ export function Problem() {
       id="problem"
       eyebrow="The problem"
       title="Autonomous trading agents fail in three predictable ways."
-      lead="Each of them is a structural property, not a tuning problem — so Deflow is built to make each one impossible rather than unlikely."
+      lead="Each of them is a structural property, not a tuning problem - so Deflow is built to make each one impossible rather than unlikely."
       center
     >
       <div className="grid gap-4 md:grid-cols-3">

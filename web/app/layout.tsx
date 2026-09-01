@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Deflow — an options desk where the AI is the least-trusted component",
+  title: "Deflow - an options desk where the AI is the least-trusted component",
   description:
     "Autonomous multi-agent options desk on Alpaca paper trading. Four agents propose, "
     + "twelve deterministic circuit breakers decide, and no model ever produces a number "
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   // Link previews get the full lockup rather than the bare mark.
   openGraph: {
     images: [{ url: "/deflow-header@2x.png", width: 1002, height: 192,
-               alt: "Deflow — autonomy, with limits." }],
-    title: "Deflow — an options desk where the AI is the least-trusted component",
+               alt: "Deflow - autonomy, with limits." }],
+    title: "Deflow - an options desk where the AI is the least-trusted component",
     description:
       "Defined-risk option spreads on Alpaca, harvesting the variance risk premium behind "
       + "a zero-LLM deterministic risk gate.",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Deflow — an options desk where the AI is the least-trusted component",
+    title: "Deflow - an options desk where the AI is the least-trusted component",
     images: ["/deflow-header@2x.png"],
   },
 };

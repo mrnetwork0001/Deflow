@@ -13,7 +13,7 @@ const AGENTS = [
     q: "What is the market doing?",
     body:
       "Measures implied against a jump-robust forecast of realised volatility on eight liquid "
-      + "names. Emits a stance, a directional bias — and about half the time, a documented "
+      + "names. Emits a stance, a directional bias - and about half the time, a documented "
       + "refusal to trade at all.",
     out: "regime + variance risk premium",
     art: <VolSmile className="w-full" />,
@@ -89,7 +89,7 @@ export function Desk() {
       id="desk"
       eyebrow="The desk"
       title="Four agents, and only one of them is a language model."
-      lead="The reasoning layer is shown finished, priced candidates and returns exactly one integer index — bounds-checked. It cannot change a strike, a width, a premium or a size. A total model failure degrades to a deterministic ranker, not to a bad trade."
+      lead="The reasoning layer is shown finished, priced candidates and returns exactly one integer index - bounds-checked. It cannot change a strike, a width, a premium or a size. A total model failure degrades to a deterministic ranker, not to a bad trade."
       center
     >
       <div
@@ -186,7 +186,7 @@ export function Desk() {
             the only LLM in the system
           </span>
           <p className="font-sans text-[13.5px] leading-[1.7] text-muted">
-            Between stages 2 and 3, Featherless AI picks one candidate from the list — or abstains.
+            Between stages 2 and 3, Featherless AI picks one candidate from the list - or abstains.
             Its entire output surface is{" "}
             <span className="font-mono text-[12.5px] text-body">
               {"{ index, confidence, rationale }"}

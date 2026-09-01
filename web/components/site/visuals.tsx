@@ -16,7 +16,7 @@
 
 import React from "react";
 
-/** Mulberry32 — small, fast, and identical across server and client. */
+/** Mulberry32 - small, fast, and identical across server and client. */
 function rng(seed: number) {
   return () => {
     seed |= 0;
@@ -33,7 +33,7 @@ function gauss(next: () => number) {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * next());
 }
 
-/** Geometric-Brownian price paths — the hero backdrop. */
+/** Geometric-Brownian price paths - the hero backdrop. */
 export function PricePaths({
   width = 1200, height = 420, paths = 26, steps = 90, seed = 7, className = "",
 }: { width?: number; height?: number; paths?: number; steps?: number; seed?: number; className?: string }) {
@@ -73,7 +73,7 @@ export function PayoffDiagram({
   credit = false, className = "",
 }: { credit?: boolean; className?: string }) {
   const w = 320, h = 150, mid = h / 2;
-  // Flat, ramp, flat — profit capped on one side, loss capped on the other.
+  // Flat, ramp, flat - profit capped on one side, loss capped on the other.
   const d = credit
     ? `M8,${mid - 34} L120,${mid - 34} L212,${mid + 40} L312,${mid + 40}`
     : `M8,${mid + 40} L120,${mid + 40} L212,${mid - 40} L312,${mid - 40}`;
@@ -94,7 +94,7 @@ export function PayoffDiagram({
   );
 }
 
-/** Volatility smile with an equity put skew — what the analyst reads. */
+/** Volatility smile with an equity put skew - what the analyst reads. */
 export function VolSmile({ className = "" }: { className?: string }) {
   const w = 320, h = 150;
   const pts: string[] = [];
@@ -119,7 +119,7 @@ export function VolSmile({ className = "" }: { className?: string }) {
   );
 }
 
-/** Terminal P&L distribution with the 5% tail shaded — the auditor's output. */
+/** Terminal P&L distribution with the 5% tail shaded - the auditor's output. */
 export function PnlDistribution({ className = "" }: { className?: string }) {
   const w = 320, h = 150, bars = 34;
   const next = rng(11);

@@ -212,11 +212,11 @@ class DecisionLedger:
             if record.get("hash") != expected:
                 return ChainStatus(
                     False, index, prev, index,
-                    f"Entry {index} content does not match its recorded hash — it was modified after writing.",
+                    f"Entry {index} content does not match its recorded hash - it was modified after writing.",
                 )
             prev = record["hash"]
         count = index + 1 if self.path.exists() and index or self._count else self._count
-        return ChainStatus(True, count, prev, None, "Chain intact — every entry hashes to its successor.")
+        return ChainStatus(True, count, prev, None, "Chain intact - every entry hashes to its successor.")
 
 
 __all__ = ["ChainStatus", "DecisionLedger", "GENESIS_HASH", "hash_record"]

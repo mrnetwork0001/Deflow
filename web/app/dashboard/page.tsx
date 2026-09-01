@@ -27,7 +27,7 @@ function BigStat({
           is the public face of a system whose argument is that unverified
           numbers are the enemy; showing $0.00 while data loads would be one. */}
       <div className={`tabular mt-2 font-mono text-[30px] font-bold leading-none ${value ? tones[tone] : "text-faint"}`}>
-        {value ?? "—"}
+        {value ?? "-"}
       </div>
       {sub && <div className="mt-2 font-mono text-[11px] text-muted">{sub}</div>}
     </div>
@@ -42,7 +42,7 @@ function SmallStat({
     <div>
       <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">{label}</dt>
       <dd className={`tabular mt-1.5 font-mono text-[15px] font-semibold ${value ? tones[tone] : "text-faint"}`}>
-        {value ?? "—"}
+        {value ?? "-"}
       </dd>
       {sub && <dd className="mt-0.5 font-mono text-[10px] text-faint">{sub}</dd>}
     </div>
@@ -82,7 +82,7 @@ function ReopenCountdown({ iso, detail }: { iso?: string | null; detail?: string
   return (
     <span className="tabular font-mono text-[10.5px] text-faint">
       {remaining === 0 ? (
-        "opening — waiting for the desk to confirm"
+        "opening - waiting for the desk to confirm"
       ) : (
         <>
           opens in{" "}
@@ -113,7 +113,7 @@ export default function Dashboard() {
   const [views, setViews] = useState<AnalystView[]>([]);
   // `views` starts empty and refreshViews swallows its error, so views.length === 0
   // covers a first load, a failed poll and a genuinely empty scan identically.
-  // Without this flag the rail's "3/5" badge would render "0/0" — a claim about
+  // Without this flag the rail's "3/5" badge would render "0/0" - a claim about
   // the universe that has never been made.
   const [viewsLoaded, setViewsLoaded] = useState(false);
   const [positions, setPositions] = useState<{ open: Position[]; closed: Position[] }>({ open: [], closed: [] });
@@ -192,7 +192,7 @@ export default function Dashboard() {
   // so a partial failure can leave them one apart. The rail sits directly beside
   // PositionsTable, whose own header renders open.length behind the same
   // loaded={status !== null} gate; matching the visible neighbour beats matching
-  // a different response. The next person to add a row will reach for perf —
+  // a different response. The next person to add a row will reach for perf -
   // this comment is why not.
   const railCounts = {
     regime: viewsLoaded ? `${views.filter((v) => v.tradeable).length}/${views.length}` : null,
@@ -215,40 +215,40 @@ export default function Dashboard() {
           </span>
         </Link>
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* STATUS — read-only. Grouped into one strip with internal
+          {/* STATUS - read-only. Grouped into one strip with internal
               dividers and no individual borders, so it reads as a readout
               rather than a row of things to press. Every one of these used to
               be a bordered pill identical to the buttons beside them. */}
           <div className="flex items-stretch divide-x divide-ink-line overflow-hidden rounded-md border border-ink-line bg-ink-raised">
             {/* Both of these used to assert a mode before the desk had said
-                anything — "simulation" and "deterministic" are claims, and a
+                anything - "simulation" and "deterministic" are claims, and a
                 null status is not evidence for either. Same three-state shape
                 the market item two rows down already uses. */}
             <StatusItem
               dot={status === null ? "bg-faint" : live ? "bg-gain" : "bg-warn"}
-              label={status === null ? "—" : live ? "Alpaca paper" : "simulation"}
+              label={status === null ? "-" : live ? "Alpaca paper" : "simulation"}
               title={
                 status === null
                   ? "Waiting for the desk to report its trading mode"
                   : live
                     ? "Trading a live Alpaca paper account"
-                    : "No credentials — seeded simulated market"
+                    : "No credentials - seeded simulated market"
               }
             />
             <StatusItem
               dot={status?.reasoning.featherless_enabled ? "bg-info" : "bg-faint"}
-              label={status === null ? "—" : status.reasoning.featherless_enabled ? "Featherless" : "deterministic"}
+              label={status === null ? "-" : status.reasoning.featherless_enabled ? "Featherless" : "deterministic"}
               title={
                 status === null
                   ? "Waiting for the desk to report its reasoning layer"
                   : status.reasoning.featherless_enabled
                     ? `Reasoning layer: ${status.reasoning.model}`
-                    : "No model key — using the deterministic ranker"
+                    : "No model key - using the deterministic ranker"
               }
             />
             <StatusItem
               dot="bg-faint"
-              label={status?.execution.route ?? "—"}
+              label={status?.execution.route ?? "-"}
               title="Order routing surface"
             />
             {status?.market_open !== undefined && (
@@ -260,7 +260,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* ACTIONS — everything below is interactive and looks it. */}
+          {/* ACTIONS - everything below is interactive and looks it. */}
           <Link
             href="/ledger/"
             className={`group inline-flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gain/60 ${
@@ -270,7 +270,7 @@ export default function Dashboard() {
             }`}
           >
             <span className="tabular">
-              Ledger {status ? status.ledger.entries.toLocaleString() : "—"}
+              Ledger {status ? status.ledger.entries.toLocaleString() : "-"}
             </span>
             <span className="text-faint group-hover:text-inherit">
               {status?.ledger.valid === false ? "chain broken" : "↗"}
@@ -303,7 +303,7 @@ export default function Dashboard() {
             Market closed
           </span>
           <span className="font-sans text-[12.5px] text-muted">
-            The desk is idle — no cycles run and no orders are placed until the
+            The desk is idle - no cycles run and no orders are placed until the
             next session. Positions and P&L below are last marks.
           </span>
           <span className="ml-auto">
@@ -407,7 +407,7 @@ export default function Dashboard() {
                           Math.abs(money$.desk_mark.total_pnl - money$.total_pnl) >= 1
                           ? `${signedPct(money$.return_pct)} · mid ${signedMoney(money$.desk_mark.total_pnl)}`
                           : signedPct(money$.return_pct)
-                        : "—"
+                        : "-"
                     }
                   />
                 </div>
@@ -441,7 +441,7 @@ export default function Dashboard() {
                         {((envelope.max_aggregate_risk_pct ?? 0.06) * 100).toFixed(0)}% ceiling
                       </>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </span>
                 </div>
@@ -481,7 +481,7 @@ export default function Dashboard() {
               loaded={status !== null}
               stale={Boolean(error) && status !== null}
             />
-            {/* min-w-0 is mandatory — this div is now the grid item. */}
+            {/* min-w-0 is mandatory - this div is now the grid item. */}
             <div id="stream" tabIndex={-1} className="min-w-0 scroll-mt-20 focus:outline-none xl:scroll-mt-6">
               <EventStream />
             </div>
@@ -508,10 +508,10 @@ export default function Dashboard() {
             evaluations, 0 vetoes" before the first response. Number.isFinite
             rather than ?? so a genuine zero still prints as zero. */}
         <span>
-          {status ? status.cycles_run : "—"} cycles · risk gate{" "}
-          {envelope.gate_version ? `v${envelope.gate_version}` : "—"} ·{" "}
-          {Number.isFinite(envelope.evaluations) ? envelope.evaluations : "—"} evaluations,{" "}
-          {Number.isFinite(envelope.vetoes) ? envelope.vetoes : "—"} vetoes
+          {status ? status.cycles_run : "-"} cycles · risk gate{" "}
+          {envelope.gate_version ? `v${envelope.gate_version}` : "-"} ·{" "}
+          {Number.isFinite(envelope.evaluations) ? envelope.evaluations : "-"} evaluations,{" "}
+          {Number.isFinite(envelope.vetoes) ? envelope.vetoes : "-"} vetoes
         </span>
         <span>
           Paper trading only. Simulated results are hypothetical and do not represent actual trading.

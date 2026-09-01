@@ -322,7 +322,7 @@ class AlpacaMarketData:
         result = self.client.get_clock()
         if not result.ok:
             log.warning("Market clock unavailable (%s); assuming open", result.error)
-            return True, "clock unavailable — assuming open"
+            return True, "clock unavailable - assuming open"
 
         data = result.data or {}
         state = (bool(data.get("is_open")), str(data.get("next_open", "")))

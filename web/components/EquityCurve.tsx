@@ -12,7 +12,7 @@ import {
 import { Badge, Panel, Stat } from "./ui";
 
 // The viewBox is stretched to the container by preserveAspectRatio="none", so
-// these units are arbitrary — only their ratios matter.
+// these units are arbitrary - only their ratios matter.
 const VW = 1000;
 const VH = 100;
 
@@ -20,8 +20,8 @@ const VH = 100;
 // classes. Keep in sync with tailwind.config.ts.
 const GAIN = "#00e08a";
 const LOSS = "#ff5a5a";
-const HAIR = "#262b33"; // ink-hair — the dashed base reference
-const CROSS = "#7c8595"; // muted — the scrub crosshair
+const HAIR = "#262b33"; // ink-hair - the dashed base reference
+const CROSS = "#7c8595"; // muted - the scrub crosshair
 
 // One height for the plot well in every state, so loading, offline, empty and
 // a drawn curve all occupy the same box and the panel never resizes under the
@@ -68,7 +68,7 @@ function geometry(data: EquityCurveData | null): Geometry | null {
 
   const base = Number.isFinite(data?.base_value) ? (data as EquityCurveData).base_value : clean[0].equity;
 
-  // The base line is drawn, so it belongs in the domain — otherwise a big run
+  // The base line is drawn, so it belongs in the domain - otherwise a big run
   // either way would push the reference off-canvas.
   let min = base;
   let max = base;

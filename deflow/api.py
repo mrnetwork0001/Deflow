@@ -764,14 +764,14 @@ _FALLBACK_PAGE = """<!doctype html>
 <p><code>cd web && npm install && npm run build</code></p>
 <p>Endpoints:</p>
 <ul>
- <li><a href="/api/status">/api/status</a> — desk, risk envelope, ledger state</li>
- <li><a href="/api/performance">/api/performance</a> — P&amp;L and trade statistics</li>
- <li><a href="/api/positions">/api/positions</a> — open and closed structures</li>
- <li><a href="/api/analysis">/api/analysis</a> — live analyst views</li>
- <li><a href="/api/ledger">/api/ledger</a> — hash-chained decision log</li>
- <li><a href="/api/ledger/verify">/api/ledger/verify</a> — chain integrity check</li>
- <li><a href="/api/risk/envelope">/api/risk/envelope</a> — the twelve breakers</li>
- <li><a href="/docs">/docs</a> — OpenAPI reference</li>
+ <li><a href="/api/status">/api/status</a> - desk, risk envelope, ledger state</li>
+ <li><a href="/api/performance">/api/performance</a> - P&amp;L and trade statistics</li>
+ <li><a href="/api/positions">/api/positions</a> - open and closed structures</li>
+ <li><a href="/api/analysis">/api/analysis</a> - live analyst views</li>
+ <li><a href="/api/ledger">/api/ledger</a> - hash-chained decision log</li>
+ <li><a href="/api/ledger/verify">/api/ledger/verify</a> - chain integrity check</li>
+ <li><a href="/api/risk/envelope">/api/risk/envelope</a> - the twelve breakers</li>
+ <li><a href="/docs">/docs</a> - OpenAPI reference</li>
 </ul>
 </div>"""
 

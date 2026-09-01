@@ -10,7 +10,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
  *
  * The three badges below DO repeat a number the panel beside them already
  * prints. That is safe only because each pair reads the same object out of the
- * same poll in the same render, so they cannot drift apart — see the note above
+ * same poll in the same render, so they cannot drift apart - see the note above
  * railCounts in page.tsx. A badge fed from a *different* response could disagree
  * with its visible neighbour, and only one of the two could be right.
  */
@@ -27,7 +27,7 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 interface SectionRailProps {
-  /** Already-formatted strings. A null entry renders no badge at all — see below. */
+  /** Already-formatted strings. A null entry renders no badge at all - see below. */
   counts: { regime: string | null; structures: string | null; gate: string | null };
   working: boolean;
   equity: string | null;
@@ -62,7 +62,7 @@ const PAIRED_TOP_TOLERANCE = 24;
 // `relative` is load-bearing, not cosmetic: the sr-only unit spans inside are
 // position:absolute, and without a positioned row their containing block is the
 // sticky rail root. Below xl the <ul> is a horizontal scroller, and an absolute
-// box whose containing block sits outside that scroller is not clipped by it —
+// box whose containing block sits outside that scroller is not clipped by it -
 // the spans then stick out at their un-scrolled x and give the whole document
 // ~264px of horizontal scroll at 375px wide.
 const ROW =
@@ -87,7 +87,7 @@ export function SectionRail({
    *
    * Not a plain timeout: at the foot of the document the clicked section may be
    * one the geometry can never select (see the promotion below), so a timeout
-   * would light a different row a second after the click — which is the bug this
+   * would light a different row a second after the click - which is the bug this
    * exists to prevent, only delayed.
    */
   const lock = useRef<{ armed: boolean } | null>(null);
@@ -121,8 +121,8 @@ export function SectionRail({
         found = id;
       }
 
-      // The last section is short — the gate panel plus the footer is under
-      // 450px — so on any viewport taller than that its top edge can never be
+      // The last section is short - the gate panel plus the footer is under
+      // 450px - so on any viewport taller than that its top edge can never be
       // scrolled up to the reading line, and the walk above can never choose it.
       // Measured at the foot of this page: at 1440x900 the gate sits at y=230
       // with nothing below it but the footer, and the walk still says Refusals.
@@ -131,7 +131,7 @@ export function SectionRail({
       // the page must actually be scrollable (an unscrollable one is at its
       // "foot" from first paint, which would pin the rail to the bottom row
       // before the reader has done anything), it must be scrolled to the end,
-      // and the last section must be entirely on screen — if you can see all of
+      // and the last section must be entirely on screen - if you can see all of
       // it and there is nothing after it, there is nothing else you could be
       // reading.
       const scrollable = doc.scrollHeight > window.innerHeight + 2;
@@ -211,7 +211,7 @@ export function SectionRail({
     // max-h, never h: a hard calc(100vh-3rem) is only the right height once the
     // rail is actually stuck at y=24. At scroll top it still sits below the
     // header, so that height overhangs the viewport by exactly the header's
-    // block size and slices the bottom off the pinned card — a header height CSS
+    // block size and slices the bottom off the pinned card - a header height CSS
     // cannot know. max-h lets the rail size to its content and only clamps when
     // the nav is genuinely taller than the screen.
     <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-ink-line bg-ink/90 backdrop-blur-md sm:-mx-6 xl:top-6 xl:z-auto xl:mx-0 xl:mb-0 xl:flex xl:max-h-[calc(100vh-3rem)] xl:flex-col xl:self-start xl:border-b-0 xl:bg-transparent xl:backdrop-blur-none">
@@ -267,7 +267,7 @@ export function SectionRail({
                       >
                         {s.label}
                       </span>
-                      {/* A count that has not loaded renders NOTHING — not 0 and
+                      {/* A count that has not loaded renders NOTHING - not 0 and
                           not an em dash. In a 148px row an em dash reads as an
                           error state; absence reads as "this row has no badge",
                           which is the truth before data lands. */}
@@ -289,7 +289,7 @@ export function SectionRail({
                               {/* Carries the unit. No title on the row: a link
                                   with text content uses title as its accessible
                                   *description*, so the unit would be announced
-                                  twice — and the title was unconditional while
+                                  twice - and the title was unconditional while
                                   the badge it describes is not, leaving a
                                   tooltip for a number that is not on screen. */}
                               <span className="sr-only">{s.unit}</span>
@@ -330,7 +330,7 @@ export function SectionRail({
               {/* Before load this says "hash-chained", which describes the
                   mechanism rather than claiming the chain has been verified. The
                   broken state is carried by the words as well as the colour, so
-                  both states are rendered at full token strength — a dimmed
+                  both states are rendered at full token strength - a dimmed
                   alarm is a colour-only alarm. */}
               <span className={`${SUB} ${ledgerBroken ? "text-loss" : "text-muted"}`}>
                 {ledgerBroken ? "chain broken" : "hash-chained"}
@@ -341,7 +341,7 @@ export function SectionRail({
       </nav>
 
       {/* The Sluice wallet card: equity and P&L stay on screen for the whole
-          scroll instead of only at the top of it. The em dash IS correct here —
+          scroll instead of only at the top of it. The em dash IS correct here -
           this is a Stat-shaped readout with a label to hang it on, unlike the
           bare badges above. It carries nothing else: absorbing the header's
           status strip or Ledger link into the rail is the regression this whole
@@ -358,18 +358,18 @@ export function SectionRail({
             !equity ? "text-faint" : stale ? "text-muted" : "text-body"
           }`}
         >
-          {equity ?? "—"}
+          {equity ?? "-"}
         </div>
         <div
           className={`tabular mt-1 font-mono text-[10.5px] ${
             !(pnl && pnlTone) ? "text-faint" : stale ? "text-muted" : pnlTone === "gain" ? "text-gain" : "text-loss"
           }`}
         >
-          {pnl ?? "—"}
+          {pnl ?? "-"}
         </div>
         {stale && (
           <div className="mt-1.5 font-mono text-[9.5px] lowercase tracking-[0.02em] text-warn">
-            last seen — refresh failed
+            last seen - refresh failed
           </div>
         )}
       </div>

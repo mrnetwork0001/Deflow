@@ -748,7 +748,7 @@ def test_cycle_is_skipped_while_the_session_is_closed(tmp_path, monkeypatch):
     """Outside market hours the chain still returns yesterday's quotes.
 
     Trading on them would build spreads at prices nobody can transact at and
-    fire multi-leg orders the broker rejects — filling the judged account's
+    fire multi-leg orders the broker rejects - filling the judged account's
     order history with noise.
     """
     import deflow.ledger as ledger_module
@@ -827,7 +827,7 @@ def test_unreachable_clock_fails_open(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------
 
 def _restart(tmp_path, monkeypatch):
-    """A fresh Portfolio over the same data directory — i.e. a process restart."""
+    """A fresh Portfolio over the same data directory - i.e. a process restart."""
     import deflow.portfolio as portfolio_module
 
     monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
@@ -840,7 +840,7 @@ def _restart(tmp_path, monkeypatch):
 def test_open_positions_survive_a_restart(tmp_path, monkeypatch):
     """The bug this guards: the desk forgot its book on every restart.
 
-    An unmanaged position is not a bookkeeping problem — the exit guard cannot
+    An unmanaged position is not a bookkeeping problem - the exit guard cannot
     stop out a structure it does not know about, and the risk gate will
     authorise a fresh six on top of the six still live at the broker.
     """
@@ -865,7 +865,7 @@ def test_open_positions_survive_a_restart(tmp_path, monkeypatch):
 
 
 def test_restored_position_reports_identical_risk(tmp_path, monkeypatch):
-    """Max loss is what every limit is measured against — it must not drift."""
+    """Max loss is what every limit is measured against - it must not drift."""
     import deflow.portfolio as portfolio_module
 
     monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
@@ -1273,7 +1273,7 @@ def test_untested_position_is_not_rolled():
     p = _spread(contracts=4)
     object.__setattr__(p.legs[0], "expiry", date.today() + timedelta(days=8))
     object.__setattr__(p.legs[1], "expiry", date.today() + timedelta(days=8))
-    # Spot far above the short put — nothing is tested.
+    # Spot far above the short put - nothing is tested.
     assert should_consider(p, 700.0, -100.0, 0) is None
 
 

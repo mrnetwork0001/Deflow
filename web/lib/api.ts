@@ -46,7 +46,7 @@ export interface Performance {
   /** Which basis the money figures above are on. "alpaca" means the broker's
    *  own numbers; "deflow-mid" means our quote-mid marks, which run high
    *  because a spread's long leg marks above the bid and its short leg below
-   *  the ask. The dashboard must say which — silently swapping between them is
+   *  the ask. The dashboard must say which - silently swapping between them is
    *  the same lie as showing a number with no source. */
   /** "alpaca" = the broker's own figure. "deflow-mid" = no broker configured,
    *  so our quote-mid marks are the whole truth. "unavailable" = the broker

@@ -1,4 +1,4 @@
-"""`python main.py --demo` — one cycle with the entire reasoning trace printed.
+"""`python main.py --demo` - one cycle with the entire reasoning trace printed.
 
 Built for the submission video and for anyone reading the repo who wants to see
 *why* the desk did what it did, not just what it did. Each of the six stages is
@@ -78,13 +78,13 @@ def run_demo(desk: Any) -> int:
             print(f"      {C['d']}· {reason}{C['x']}")
 
         if outcome.stage == "analyst":
-            print(f"\n      {C['y']}▸ NO TRADE{C['x']} — {outcome.detail}")
+            print(f"\n      {C['y']}▸ NO TRADE{C['x']} - {outcome.detail}")
             continue
 
         # --- Stage 2 ----------------------------------------------------
         stage(2, "OPTIONS STRUCTURER", "defined-risk construction from live chain")
         if outcome.stage == "structurer":
-            print(f"      {C['y']}▸ NO TRADE{C['x']} — {outcome.detail}")
+            print(f"      {C['y']}▸ NO TRADE{C['x']} - {outcome.detail}")
             continue
         kv("candidates built", str(outcome.candidates))
 
@@ -142,7 +142,7 @@ def run_demo(desk: Any) -> int:
             print(f"      {C[colour]}⚠ {objection['severity'].upper()}{C['x']} "
                   f"{C['d']}{objection['message'][:150]}{C['x']}")
         if outcome.stage == "audit":
-            print(f"\n      {C['r']}▸ VETOED BY AUDITOR{C['x']} — {outcome.detail}")
+            print(f"\n      {C['r']}▸ VETOED BY AUDITOR{C['x']} - {outcome.detail}")
             continue
 
         # --- Stage 5 ----------------------------------------------------
@@ -156,21 +156,21 @@ def run_demo(desk: Any) -> int:
                   f"{C[colour]}{breaker['name']:<28}{C['x']} "
                   f"{C['d']}{breaker['detail'][:70]}{C['x']}")
         if not verdict.get("approved", False):
-            print(f"\n      {C['r']}{C['B']}▸ VETOED BY RISK GATE{C['x']} — {outcome.detail[:120]}")
+            print(f"\n      {C['r']}{C['B']}▸ VETOED BY RISK GATE{C['x']} - {outcome.detail[:120]}")
             continue
-        print(f"      {C['g']}{C['B']}▸ APPROVED{C['x']} — "
+        print(f"      {C['g']}{C['B']}▸ APPROVED{C['x']} - "
               f"{verdict.get('approved_contracts')} contracts authorised")
 
         # --- Stage 6 ----------------------------------------------------
         execution = outcome.execution or {}
         stage(6, "EXECUTION AGENT", f"route: {execution.get('route')}")
         if execution.get("simulated"):
-            kv("note", "simulated fill — no Alpaca credentials configured", "y")
+            kv("note", "simulated fill - no Alpaca credentials configured", "y")
         if execution.get("dry_run"):
-            kv("note", "dry run — request rendered, not submitted", "y")
+            kv("note", "dry run - request rendered, not submitted", "y")
         kv("limit price", f"${execution.get('limit_price', 0):+.2f} (net)")
         kv("client order id", execution.get("client_order_id", ""))
-        kv("order id", execution.get("order_id", "") or "—")
+        kv("order id", execution.get("order_id", "") or "-")
         kv("submitted", str(execution.get("submitted")),
            "g" if execution.get("submitted") else "r")
         if execution.get("error"):

@@ -21,7 +21,7 @@ export function Hero() {
 
   return (
     <header className="relative overflow-hidden px-6 pb-20 pt-32 sm:pt-40">
-      {/* Simulated price paths — the same mathematics the auditor stresses
+      {/* Simulated price paths - the same mathematics the auditor stresses
           proposals with. pointer-events-none so it can never eat a click. */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[620px] opacity-[0.45]">
         <div className="grid-bg absolute inset-0 opacity-40" />
@@ -111,7 +111,7 @@ function HeroStats({ status }: { status: Status | null }) {
     ["100%", "defined risk", "no naked options, ever"],
     ["2%", "max per trade", "sized by the gate"],
     [
-      live ? status!.ledger.entries.toLocaleString() : "—",
+      live ? status!.ledger.entries.toLocaleString() : "-",
       "decisions logged",
       live && status!.ledger.valid ? "chain verified" : "hash-chained",
     ],

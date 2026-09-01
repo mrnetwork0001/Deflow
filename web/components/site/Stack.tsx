@@ -13,7 +13,7 @@ const SURFACES = [
   {
     t: "Alpaca CLI",
     s: "Default order route",
-    d: "The official Go binary is the interface an unattended agent actually gets deployed behind — its own 429/5xx backoff, its own credential resolution, and --dry-run to render the exact request without sending it.",
+    d: "The official Go binary is the interface an unattended agent actually gets deployed behind - its own 429/5xx backoff, its own credential resolution, and --dry-run to render the exact request without sending it.",
     note: "Every order carries an idempotent client order id.",
   },
   {
@@ -65,7 +65,7 @@ export function Stack() {
             "side":"buy","position_intent":"buy_to_open"}]'`}
         </pre>
         <p className="mt-4 font-sans text-[12.5px] text-muted">
-          Negative limit price because Alpaca quotes multi-leg packages net —{" "}
+          Negative limit price because Alpaca quotes multi-leg packages net -{" "}
           <span className="text-body">positive is a debit paid, negative is a credit received</span>.
         </p>
       </Card>

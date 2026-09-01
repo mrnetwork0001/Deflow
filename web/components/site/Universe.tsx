@@ -56,7 +56,7 @@ export function Universe() {
         {(["sell_premium", "buy_convexity", "stand_down"] as const).map((k) => (
           <div key={k} className="flex items-baseline gap-2.5">
             <span className={`tabular font-mono text-[19px] font-bold ${STANCE[k].text}`}>
-              {views ? counts[k] : "—"}
+              {views ? counts[k] : "-"}
             </span>
             <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint">
               {STANCE[k].label}
@@ -96,7 +96,7 @@ export function Universe() {
                 <span className="tabular w-24 text-right font-mono text-[12px] text-muted">
                   {v.price != null
                     ? `$${v.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                    : "—"}
+                    : "-"}
                 </span>
 
                 <div className="order-last w-full sm:order-none sm:w-auto sm:flex-1 sm:px-4">
@@ -104,12 +104,12 @@ export function Universe() {
                 </div>
 
                 <span className="tabular w-16 text-right font-mono text-[11.5px] text-muted">
-                  {v.iv_rank != null ? `${(v.iv_rank * 100).toFixed(0)}%` : "—"}
+                  {v.iv_rank != null ? `${(v.iv_rank * 100).toFixed(0)}%` : "-"}
                 </span>
                 <span className="tabular w-14 text-right font-mono text-[11.5px] text-muted">
                   {v.trend_score != null
                     ? `${v.trend_score >= 0 ? "+" : ""}${v.trend_score.toFixed(2)}`
-                    : "—"}
+                    : "-"}
                 </span>
                 <span
                   className={`w-28 text-right font-mono text-[10.5px] uppercase tracking-[0.1em] ${
@@ -159,7 +159,7 @@ function VrpBar({ value }: { value: number | null }) {
           value === null ? "text-faint" : inBand ? "text-faint" : rich ? "text-gain" : "text-info"
         }`}
       >
-        {value === null ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1)}%`}
+        {value === null ? "-" : `${v >= 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1)}%`}
       </span>
     </div>
   );

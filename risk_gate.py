@@ -1,5 +1,5 @@
 """
-Deflow — Deterministic Zero-LLM Risk Gate
+Deflow - Deterministic Zero-LLM Risk Gate
 =========================================
 
 The only component in Deflow with veto authority over capital.
@@ -594,7 +594,7 @@ if __name__ == "__main__":
     gate = DeterministicRiskGate(account_equity=100_000.0)
 
     print("=" * 74)
-    print(f" DEFLOW DETERMINISTIC RISK GATE v{DeterministicRiskGate.VERSION} — 12 zero-LLM circuit breakers")
+    print(f" DEFLOW DETERMINISTIC RISK GATE v{DeterministicRiskGate.VERSION} - 12 zero-LLM circuit breakers")
     print("=" * 74)
 
     cases = [
@@ -607,7 +607,7 @@ if __name__ == "__main__":
             },
         ),
         (
-            "Naked call — no long wing to cap the loss",
+            "Naked call - no long wing to cap the loss",
             {
                 "symbol": "NVDA", "strategy": "naked_call", "is_defined_risk_spread": False,
                 "leg_count": 1, "contracts": 1, "max_loss": 15000.0, "max_profit": 480.0,

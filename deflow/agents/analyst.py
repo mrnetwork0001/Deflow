@@ -1,4 +1,4 @@
-"""Agent 1 — Macro & Volatility Analyst.
+"""Agent 1 - Macro & Volatility Analyst.
 
 Answers one question per symbol: *is option premium currently rich or cheap,
 and which way is the underlying leaning?*
@@ -107,14 +107,14 @@ class MacroVolatilityAnalyst:
             stance = "sell_premium"
             reasons.append(
                 f"Implied {s.iv_30d:.1%} exceeds forecast realised {s.hv_forecast:.1%} by "
-                f"{vrp:+.1%} ({vrp * 100:.1f} vol points) with IV rank at {s.iv_rank:.0%} — "
+                f"{vrp:+.1%} ({vrp * 100:.1f} vol points) with IV rank at {s.iv_rank:.0%} - "
                 f"premium is rich."
             )
         elif vrp <= VRP_CHEAP and s.iv_rank <= MAX_IV_RANK_TO_BUY:
             stance = "buy_convexity"
             reasons.append(
                 f"Implied {s.iv_30d:.1%} sits below forecast realised {s.hv_forecast:.1%} "
-                f"({vrp:+.1%}) with IV rank at {s.iv_rank:.0%} — convexity is underpriced."
+                f"({vrp:+.1%}) with IV rank at {s.iv_rank:.0%} - convexity is underpriced."
             )
         else:
             stance = "stand_down"
@@ -123,19 +123,19 @@ class MacroVolatilityAnalyst:
             if vrp >= VRP_RICH:
                 reasons.append(
                     f"Variance premium {vrp:+.1%} is rich, but IV rank {s.iv_rank:.0%} is below the "
-                    f"{MIN_IV_RANK_TO_SELL:.0%} floor — implied is above realised only because realised "
+                    f"{MIN_IV_RANK_TO_SELL:.0%} floor - implied is above realised only because realised "
                     f"has collapsed, not because premium is historically elevated."
                 )
             elif vrp <= VRP_CHEAP:
                 reasons.append(
                     f"Implied sits {vrp:+.1%} below realised, but IV rank {s.iv_rank:.0%} is above the "
-                    f"{MAX_IV_RANK_TO_BUY:.0%} ceiling — options are cheap against a realised move that "
+                    f"{MAX_IV_RANK_TO_BUY:.0%} ceiling - options are cheap against a realised move that "
                     f"is itself extreme, so owning convexity here is paying up near the highs."
                 )
             else:
                 reasons.append(
                     f"Variance premium {vrp:+.1%} is inside the [{VRP_CHEAP:+.1%}, {VRP_RICH:+.1%}] "
-                    f"noise band (IV rank {s.iv_rank:.0%}) — no volatility edge to trade."
+                    f"noise band (IV rank {s.iv_rank:.0%}) - no volatility edge to trade."
                 )
 
         # --- Directional bias ----------------------------------------------
@@ -151,9 +151,9 @@ class MacroVolatilityAnalyst:
 
         # An overheated or washed-out RSI argues against pressing the trend.
         if bias == "bullish" and s.rsi14 > 72:
-            reasons.append(f"RSI {s.rsi14:.0f} is overbought — directional conviction reduced.")
+            reasons.append(f"RSI {s.rsi14:.0f} is overbought - directional conviction reduced.")
         elif bias == "bearish" and s.rsi14 < 28:
-            reasons.append(f"RSI {s.rsi14:.0f} is oversold — directional conviction reduced.")
+            reasons.append(f"RSI {s.rsi14:.0f} is oversold - directional conviction reduced.")
 
         return AnalystView(
             snapshot=s,

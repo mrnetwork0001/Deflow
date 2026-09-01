@@ -9,7 +9,7 @@ const CLOSED_PREVIEW = 6;
  * The book, in three states of certainty: working orders that are out but not
  * filled, structures actually held, and what has already been closed.
  *
- * There is no loading or offline branch here on purpose — this component owns
+ * There is no loading or offline branch here on purpose - this component owns
  * no fetch. The dashboard holds the poll and renders the unreachable screen, so
  * an empty `open` here can only be read as "nothing shown", never as a claim
  * about the desk's current book.
@@ -37,7 +37,7 @@ export function PositionsTable({
   return (
     // min-w-0 so the wide table below scrolls inside its own container instead
     // of forcing the dashboard grid column wider than the viewport.
-    // No .lift: this is a readout, not a target — lifting it would move the row
+    // No .lift: this is a readout, not a target - lifting it would move the row
     // under the cursor while it is being read.
     <section className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-ink-line bg-ink-card">
       <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-ink-line px-4 py-2.5">
@@ -60,7 +60,7 @@ export function PositionsTable({
           <div className="flex items-center gap-2 border-b border-warn/20 px-4 py-2">
             <span className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />
             <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-warn">
-              Working orders — submitted, not yet filled
+              Working orders - submitted, not yet filled
             </span>
           </div>
           <ul className="divide-y divide-warn/10">
@@ -112,7 +112,7 @@ export function PositionsTable({
           <>
           {stale && (
             <div className="mb-3 rounded-md border border-warn/40 bg-warn/[0.07] px-3 py-2 font-mono text-[10.5px] text-warn">
-              Last refresh failed — these rows are as last seen, not as they stand now.
+              Last refresh failed - these rows are as last seen, not as they stand now.
             </div>
           )}
           <div
@@ -218,7 +218,7 @@ export function PositionsTable({
           </div>
           <ul className={`divide-y divide-ink-line/60 ${showAllClosed ? "max-h-56 overflow-y-auto" : ""}`}>
             {closedShown.map((c) => {
-              // A trade closed without a realised figure is unknown, not flat —
+              // A trade closed without a realised figure is unknown, not flat -
               // rendering it as $0.00 would invent a result.
               const realized = c.realized_pnl;
               return (
@@ -231,10 +231,10 @@ export function PositionsTable({
                       realized == null ? "text-faint" : realized >= 0 ? "text-gain" : "text-loss"
                     }`}
                   >
-                    {realized == null ? "—" : signedMoney(realized)}
+                    {realized == null ? "-" : signedMoney(realized)}
                   </span>
                   <span className="w-12 shrink-0 font-bold text-body">{c.symbol}</span>
-                  <span className="truncate text-muted">{c.close_reason ?? "—"}</span>
+                  <span className="truncate text-muted">{c.close_reason ?? "-"}</span>
                 </li>
               );
             })}
@@ -250,7 +250,7 @@ export function PositionsTable({
 function Count({ n, label, tone }: { n: number | null; label: string; tone: string }) {
   return (
     <span className="flex items-baseline gap-1.5">
-      <span className={`tabular font-mono text-[13px] font-bold ${n ? tone : "text-faint"}`}>{n ?? "—"}</span>
+      <span className={`tabular font-mono text-[13px] font-bold ${n ? tone : "text-faint"}`}>{n ?? "-"}</span>
       <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-faint">{label}</span>
     </span>
   );

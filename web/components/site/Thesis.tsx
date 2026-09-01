@@ -15,7 +15,7 @@ export function Thesis() {
           <span className="text-gain">Expectancy is.</span>
         </>
       }
-      lead="Under the risk-neutral measure every vertical spread is worth exactly what it costs. Score a candidate at its own implied volatility and every trade prices at zero — the correct answer, and a useless one. So Deflow scores each candidate twice, and trades the difference."
+      lead="Under the risk-neutral measure every vertical spread is worth exactly what it costs. Score a candidate at its own implied volatility and every trade prices at zero - the correct answer, and a useless one. So Deflow scores each candidate twice, and trades the difference."
     >
       {/* ── the two measures, side by side ─────────────────────────────── */}
       <div className="grid gap-px overflow-hidden rounded-xl border border-ink-line bg-ink-line md:grid-cols-2">
@@ -24,7 +24,7 @@ export function Thesis() {
           vol="implied volatility"
           value="≈ $0"
           tone="info"
-          note="What the market says it is worth. Zero expected value, as arbitrage requires — which is why scoring this way ranks every candidate identically."
+          note="What the market says it is worth. Zero expected value, as arbitrage requires - which is why scoring this way ranks every candidate identically."
         />
         <Measure
           label="Physical"
@@ -37,7 +37,7 @@ export function Thesis() {
 
       <p className="mt-5 text-center font-sans text-[14.5px] leading-relaxed text-muted">
         The dollar gap between those two numbers <span className="text-body">is</span> the variance
-        risk premium — and it is the only reason to put the trade on.
+        risk premium - and it is the only reason to put the trade on.
       </p>
 
       {/* ── what that rules out ────────────────────────────────────────── */}
@@ -59,7 +59,7 @@ export function Thesis() {
 
           <p className="mt-6 font-sans text-[13.5px] leading-[1.75] text-muted">
             A high win rate is not an edge. It is a way to lose money slowly and feel good about
-            it. Anything with non-positive expectancy under the physical measure is refused —{" "}
+            it. Anything with non-positive expectancy under the physical measure is refused -{" "}
             <span className="text-body">however high its probability of profit</span>.
           </p>
         </div>
@@ -71,7 +71,7 @@ export function Thesis() {
             </div>
             <p className="mt-4 font-sans text-[13.5px] leading-[1.75] text-muted">
               Defined-risk structures only. Every short leg sits inside a long of the same right, so
-              the worst case is a property of the geometry rather than a promise — and the wing is
+              the worst case is a property of the geometry rather than a promise - and the wing is
               what makes the maximum loss knowable before the order is sent.
             </p>
           </div>

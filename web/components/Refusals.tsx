@@ -40,7 +40,7 @@ interface Group { head: Refusal; count: number }
 /**
  * The analyst declines most often and phrases it identically cycle after cycle.
  * Folding consecutive identical (symbol, stage, reason) runs into one row keeps
- * the rare refusals — an auditor objection, a risk-gate veto — visible instead
+ * the rare refusals - an auditor objection, a risk-gate veto - visible instead
  * of buried under fifty copies of the same sentence.
  */
 function collapse(refusals: Refusal[]): Group[] {
@@ -65,7 +65,7 @@ const hhmmss = (d: Date) => d.toLocaleTimeString("en-GB", { hour12: false });
 
 function clock(at: string): string {
   const ms = Date.parse(at);
-  return Number.isNaN(ms) ? "—" : hhmmss(new Date(ms));
+  return Number.isNaN(ms) ? "-" : hhmmss(new Date(ms));
 }
 
 // Two clamped lines run to roughly this many characters at the reason column's
@@ -164,12 +164,12 @@ export function Refusals() {
                 Documented refusals
               </div>
               <div className="tabular mt-1.5 font-mono text-[28px] font-bold leading-none text-body">
-                {total ?? "—"}
+                {total ?? "-"}
               </div>
             </div>
             <p className="max-w-prose flex-1 basis-72 font-sans text-[12.5px] leading-[1.7] text-muted">
               A refusal is an outcome, not an absence. Every one below names the agent that said no and the
-              reason it gave — the same record the ledger keeps.
+              reason it gave - the same record the ledger keeps.
             </p>
           </div>
 
@@ -231,9 +231,9 @@ export function Refusals() {
                       >
                         {s.count}
                       </span>
-                      {/* A share of nothing is not 0% — it is undefined. */}
+                      {/* A share of nothing is not 0% - it is undefined. */}
                       <span className="tabular font-mono text-[10.5px] text-faint">
-                        {staged > 0 ? pct(s.count / staged, 0) : "—"}
+                        {staged > 0 ? pct(s.count / staged, 0) : "-"}
                       </span>
                     </div>
                   </div>
@@ -244,7 +244,7 @@ export function Refusals() {
 
           {offline && (
             <div className="rounded-md border border-warn/25 bg-warn/[0.06] px-3 py-2 font-mono text-[10.5px] leading-relaxed text-warn">
-              backend unreachable — nothing below has changed since the last successful read
+              backend unreachable - nothing below has changed since the last successful read
               {readAt && <span className="tabular"> at {readAt}</span>}
             </div>
           )}

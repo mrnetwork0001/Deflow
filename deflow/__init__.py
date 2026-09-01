@@ -1,4 +1,4 @@
-"""Deflow — Autonomous Multi-Agent Options Desk on Alpaca."""
+"""Deflow - Autonomous Multi-Agent Options Desk on Alpaca."""
 
 __version__ = "1.0.0"
 __all__ = ["__version__"]

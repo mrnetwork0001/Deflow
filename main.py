@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Deflow — Autonomous Multi-Agent Options Desk on Alpaca
+Deflow - Autonomous Multi-Agent Options Desk on Alpaca
 ======================================================
 
 One command, from a bare clone:
@@ -121,7 +121,7 @@ def banner(settings) -> None:
     mode = (
         f"{C['g']}PAPER TRADING{C['x']} (live Alpaca account)"
         if live
-        else f"{C['y']}SIMULATION{C['x']} (no credentials — seeded synthetic market)"
+        else f"{C['y']}SIMULATION{C['x']} (no credentials - seeded synthetic market)"
     )
     print(f"  Mode      : {mode}")
     print(f"  Universe  : {', '.join(settings.universe)}")
@@ -193,7 +193,7 @@ def build_desk(dry_run: bool = False):
             # there.
             equity = float(account.data.get("equity", equity) or equity)
             print(f"  {C['g']}✓{C['x']} Alpaca account {account.data.get('account_number', '?')} "
-                  f"— equity ${equity:,.2f}")
+                  f"- equity ${equity:,.2f}")
         else:
             print(f"  {C['r']}✗{C['x']} Alpaca credentials rejected: {account.error[:100]}")
 
@@ -205,9 +205,9 @@ def build_desk(dry_run: bool = False):
     # will authorise a fresh set on top of them.
     restored = portfolio.load()
     if restored["restored"]:
-        print(f"  {C['g']}✓{C['x']} Restored open book — {restored['detail']}")
+        print(f"  {C['g']}✓{C['x']} Restored open book - {restored['detail']}")
     if restored.get("failed"):
-        print(f"  {C['r']}✗{C['x']} {restored['failed']} position(s) could not be restored — "
+        print(f"  {C['r']}✗{C['x']} {restored['failed']} position(s) could not be restored - "
               f"check the broker manually")
     executor = ExecutionAgent(
         gate, cli=cli, rest=rest,
@@ -249,13 +249,13 @@ def diagnostics() -> int:
         result = AlpacaClient().get_account()
         if result.ok:
             d = result.data
-            print(f"  {ok} Account {d.get('account_number')} — equity ${float(d.get('equity', 0)):,.2f}, "
+            print(f"  {ok} Account {d.get('account_number')} - equity ${float(d.get('equity', 0)):,.2f}, "
                   f"status {d.get('status')}")
             print(f"  {ok} Options level: {d.get('options_trading_level', 'n/a')}")
         else:
             print(f"  {C['r']}✗{C['x']} {result.error[:120]}")
     else:
-        print(f"  {warn} No credentials — set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env")
+        print(f"  {warn} No credentials - set ALPACA_API_KEY and ALPACA_SECRET_KEY in .env")
 
     print(f"\n{C['B']}Alpaca CLI{C['x']}")
     cli = AlpacaCLI()
@@ -275,7 +275,7 @@ def diagnostics() -> int:
     if mcp.available:
         started = mcp.start()
         if started.ok:
-            print(f"  {ok} {mcp.server_info.get('name')} v{mcp.server_info.get('version')} — "
+            print(f"  {ok} {mcp.server_info.get('name')} v{mcp.server_info.get('version')} - "
                   f"{len(mcp.tools)} tools")
             for keywords in (("option", "chain"), ("option", "contract"), ("account",)):
                 print(f"      {'·'.join(keywords):22} -> {mcp.find_tool(*keywords) or 'not exposed'}")
@@ -289,10 +289,10 @@ def diagnostics() -> int:
     fl = FeatherlessClient()
     if fl.enabled:
         content, error = fl.complete("Reply with the single word: ready.", "ping", max_tokens=10)
-        print(f"  {ok} {fl.model} — {content.strip()[:60]}" if not error
+        print(f"  {ok} {fl.model} - {content.strip()[:60]}" if not error
               else f"  {C['r']}✗{C['x']} {error[:120]}")
     else:
-        print(f"  {warn} No FEATHERLESS_API_KEY — reasoning falls back to the deterministic ranker")
+        print(f"  {warn} No FEATHERLESS_API_KEY - reasoning falls back to the deterministic ranker")
     fl.close()
     return 0
 
@@ -327,7 +327,7 @@ def main() -> int:
 
     banner(SETTINGS)
     if args.dry_run:
-        print(f"  {C['y']}DRY RUN{C['x']} — orders are rendered and logged, never submitted.\n")
+        print(f"  {C['y']}DRY RUN{C['x']} - orders are rendered and logged, never submitted.\n")
 
     desk = build_desk(dry_run=args.dry_run)
 

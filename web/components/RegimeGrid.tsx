@@ -19,7 +19,7 @@ const STANCE_ORDER = ["sell_premium", "buy_convexity", "stand_down"] as const;
 const BAND = 0.02;
 const SCALE = 0.12; // full bar width, either side of zero
 
-/** Missing or non-finite readings render as an em dash — never as a zero. */
+/** Missing or non-finite readings render as an em dash - never as a zero. */
 const num = (x: unknown): number | null =>
   typeof x === "number" && Number.isFinite(x) ? x : null;
 
@@ -101,7 +101,7 @@ export function RegimeGrid({ views }: { views: AnalystView[] }) {
           {rows.length === 0 ? (
             // `views` is the only channel this component has: an empty array
             // covers a first load, a scan that returned nothing, and a poll
-            // that failed. It reports what it knows — no rows — instead of
+            // that failed. It reports what it knows - no rows - instead of
             // picking one of the three and asserting it.
             <div className="grid min-h-[232px] place-items-center px-5 text-center">
               <div>
@@ -148,7 +148,7 @@ export function RegimeGrid({ views }: { views: AnalystView[] }) {
                         {v.symbol}
                       </span>
                       <span className={`tabular ${COL.last} text-right font-mono text-[12px] text-muted`}>
-                        {price === null ? "—" : money(price)}
+                        {price === null ? "-" : money(price)}
                       </span>
 
                       <span className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:px-3">
@@ -159,31 +159,31 @@ export function RegimeGrid({ views }: { views: AnalystView[] }) {
                         title="IV 30d / HV 60d"
                         className={`tabular ${COL.ivhv} text-right font-mono text-[11.5px] text-muted`}
                       >
-                        {iv === null || hv === null ? "—" : `${pct(iv)} / ${pct(hv)}`}
+                        {iv === null || hv === null ? "-" : `${pct(iv)} / ${pct(hv)}`}
                       </span>
                       <span
                         title="IV rank"
                         className={`tabular ${COL.ivr} text-right font-mono text-[11.5px] text-muted`}
                       >
-                        {ivr === null ? "—" : pct(ivr, 0)}
+                        {ivr === null ? "-" : pct(ivr, 0)}
                       </span>
                       <span
                         title="trend score"
                         className={`tabular ${COL.trend} text-right font-mono text-[11.5px] text-muted`}
                       >
-                        {tr === null ? "—" : trend(tr)}
+                        {tr === null ? "-" : trend(tr)}
                       </span>
                       <span
                         title="RSI 14"
                         className={`tabular ${COL.rsi} text-right font-mono text-[11.5px] text-muted`}
                       >
-                        {rsi === null ? "—" : rsi.toFixed(0)}
+                        {rsi === null ? "-" : rsi.toFixed(0)}
                       </span>
                       <span
                         title="conviction"
                         className={`tabular ${COL.conv} text-right font-mono text-[11.5px] text-muted`}
                       >
-                        {conv === null ? "—" : pct(conv, 0)}
+                        {conv === null ? "-" : pct(conv, 0)}
                       </span>
                       <span
                         className={`${COL.stance} text-right font-mono text-[10.5px] uppercase tracking-[0.1em] ${
@@ -208,19 +208,19 @@ export function RegimeGrid({ views }: { views: AnalystView[] }) {
                         className="animate-rise border-t border-ink-line bg-ink px-4 py-3.5"
                       >
                         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 lg:grid-cols-5">
-                          <Metric k="IV 30d" v={iv === null ? "—" : pct(iv)} />
-                          <Metric k="HV 60d" v={hv === null ? "—" : pct(hv)} />
-                          <Metric k="IV rank" v={ivr === null ? "—" : pct(ivr, 0)} />
+                          <Metric k="IV 30d" v={iv === null ? "-" : pct(iv)} />
+                          <Metric k="HV 60d" v={hv === null ? "-" : pct(hv)} />
+                          <Metric k="IV rank" v={ivr === null ? "-" : pct(ivr, 0)} />
                           <Metric
                             k="variance premium"
-                            v={vrp === null ? "—" : signedPct(vrp * 100)}
+                            v={vrp === null ? "-" : signedPct(vrp * 100)}
                             tone={vrp === null || Math.abs(vrp) <= BAND ? "text-muted" : vrp > 0 ? "text-gain" : "text-info"}
                           />
-                          <Metric k="trend" v={tr === null ? "—" : trend(tr)} />
-                          <Metric k="RSI 14" v={rsi === null ? "—" : rsi.toFixed(0)} />
-                          <Metric k="conviction" v={conv === null ? "—" : pct(conv, 0)} />
-                          <Metric k="regime" v={v.regime || "—"} />
-                          <Metric k="bias" v={v.bias || "—"} />
+                          <Metric k="trend" v={tr === null ? "-" : trend(tr)} />
+                          <Metric k="RSI 14" v={rsi === null ? "-" : rsi.toFixed(0)} />
+                          <Metric k="conviction" v={conv === null ? "-" : pct(conv, 0)} />
+                          <Metric k="regime" v={v.regime || "-"} />
+                          <Metric k="bias" v={v.bias || "-"} />
                           <Metric
                             k="tradeable"
                             v={v.tradeable ? "true" : "false"}
@@ -291,7 +291,7 @@ function VrpBar({ value }: { value: number | null }) {
           value === null ? "text-faint" : inBand ? "text-muted" : rich ? "text-gain" : "text-info"
         }`}
       >
-        {value === null ? "—" : signedPct(value * 100)}
+        {value === null ? "-" : signedPct(value * 100)}
       </span>
     </span>
   );

@@ -40,7 +40,7 @@ const num = (v: unknown): number | null =>
 
 const words = (v: unknown) => String(v ?? "").replace(/_/g, " ");
 
-/** Compact signed dollars — "+$91". Whole dollars keep a summary line scannable. */
+/** Compact signed dollars - "+$91". Whole dollars keep a summary line scannable. */
 const signed0 = (n: number) => `${n >= 0 ? "+" : "−"}${money(Math.abs(n), 0)}`;
 
 const join = (...parts: (string | null | false)[]) => parts.filter(Boolean).join(" · ");
@@ -68,7 +68,7 @@ function describe(entry: LedgerEntry): string {
     }
 
     case "market_closed":
-      return typeof p.detail === "string" && p.detail ? p.detail : "market closed — cycle skipped";
+      return typeof p.detail === "string" && p.detail ? p.detail : "market closed - cycle skipped";
 
     case "analyst_view": {
       const vrp = num(p.variance_premium);
@@ -116,7 +116,7 @@ function describe(entry: LedgerEntry): string {
         .filter(Boolean)
         .join(" ");
       const timing = micros !== null ? ` in ${micros.toFixed(1)}µs` : "";
-      // A veto is only meaningful with its reason attached — that string is the
+      // A veto is only meaningful with its reason attached - that string is the
       // whole point of the gate, so it is never abbreviated away.
       const verdict =
         p.approved === true
@@ -124,12 +124,12 @@ function describe(entry: LedgerEntry): string {
           : typeof p.reason === "string" && p.reason
             ? p.reason
             : "vetoed";
-      return `${head}${timing} — ${verdict}`;
+      return `${head}${timing} - ${verdict}`;
     }
 
     case "execution": {
       if (p.submitted === false) {
-        return `${sym} order rejected${p.error ? ` — ${String(p.error)}` : ""}`.trim();
+        return `${sym} order rejected${p.error ? ` - ${String(p.error)}` : ""}`.trim();
       }
       const contracts = num(p.contracts);
       return join(
@@ -166,7 +166,7 @@ function describe(entry: LedgerEntry): string {
         .filter(([, v]) => typeof v === "string" || typeof v === "number" || typeof v === "boolean")
         .slice(0, 4)
         .map(([k, v]) => `${k} ${v}`);
-      return scalars.join(" · ") || "no scalar fields — expand to read the payload";
+      return scalars.join(" · ") || "no scalar fields - expand to read the payload";
     }
   }
 }
@@ -292,7 +292,7 @@ export function LedgerViewer() {
       right={
         <Badge tone={offline ? "muted" : broken ? "loss" : "gain"}>
           {stale
-            ? `${total !== null ? total.toLocaleString() + " entries" : "entries"} — unconfirmed`
+            ? `${total !== null ? total.toLocaleString() + " entries" : "entries"} - unconfirmed`
             : total !== null
               ? `${total.toLocaleString()} entries`
               : "unavailable"}
@@ -324,7 +324,7 @@ export function LedgerViewer() {
 
             <p className="mt-1.5 max-w-prose text-[11px] leading-relaxed text-muted">
               {offline
-                ? `The verifier is unreachable — ${error || "no response"}. Nothing is asserted about the record until it answers.`
+                ? `The verifier is unreachable - ${error || "no response"}. Nothing is asserted about the record until it answers.`
                 : broken
                   ? chain!.detail
                   : `Every one of ${chain!.entries.toLocaleString()} entries re-hashes to its successor.`}
@@ -415,7 +415,7 @@ export function LedgerViewer() {
         ) : entries.length === 0 ? (
           <Empty>
             {error
-              ? <>Ledger unreachable — <span className="text-loss">{error}</span>. Showing nothing rather than something stale.</>
+              ? <>Ledger unreachable - <span className="text-loss">{error}</span>. Showing nothing rather than something stale.</>
               : filter !== "all"
                 ? <>No <span className="text-body">{filter}</span> entries in the last {limit}.</>
                 : <>The ledger is empty. No cycle has been recorded yet.</>}
@@ -428,7 +428,7 @@ export function LedgerViewer() {
                 has been verified. */}
             {stale && (
               <div className="mb-2 rounded-md border border-warn/40 bg-warn/[0.07] px-3 py-2 font-mono text-[10.5px] text-warn">
-                Not confirmed by the latest fetch{seenAt ? ` — last confirmed ${seenAt}` : ""}.
+                Not confirmed by the latest fetch{seenAt ? ` - last confirmed ${seenAt}` : ""}.
                 These entries are as last seen, not as they stand now.
               </div>
             )}
@@ -547,7 +547,7 @@ function Row({
             <p className="mt-2 text-[10px] leading-relaxed text-muted">
               Entry {entry.seq} hashes its own body together with the SHA-256 of{" "}
               {entry.prev_hash === GENESIS ? "the genesis value" : `entry ${entry.seq - 1}`}. Change a
-              byte of the payload and this hash — and every hash after it — stops matching, which is
+              byte of the payload and this hash - and every hash after it - stops matching, which is
               exactly what <span className="text-body">Verify chain</span> recomputes.
             </p>
           </div>

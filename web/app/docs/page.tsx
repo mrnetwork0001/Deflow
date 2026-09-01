@@ -7,7 +7,7 @@ import { Wordmark, GITHUB_URL } from "@/components/site/chrome";
 /* Documentation in the grouped-sidebar format: uppercase group labels, an
    accent-barred active item that follows the reader, a wide content column
    with key-value tables and code chips, on a faint grid texture. One route,
-   anchored sections — the sidebar is a scrollspy, not a router. */
+   anchored sections - the sidebar is a scrollspy, not a router. */
 
 // ---------------------------------------------------------------------------
 // Contents
@@ -295,7 +295,7 @@ export default function DocsPage() {
             <P>
               <B>Deflow is an autonomous options trading desk.</B> Four specialised agents observe
               the market, structure defined-risk option spreads, audit them adversarially and route
-              them to a live Alpaca paper account — under a deterministic risk gate that no language
+              them to a live Alpaca paper account - under a deterministic risk gate that no language
               model can talk its way past.
             </P>
             <P>
@@ -307,15 +307,15 @@ export default function DocsPage() {
             </P>
             <ul className="mb-6 max-w-[78ch] space-y-2 font-sans text-[15px] leading-[1.8] text-muted">
               <li>
-                • <B>Measured, not vibes</B> — implied volatility against a jump-robust forecast of
+                • <B>Measured, not vibes</B> - implied volatility against a jump-robust forecast of
                 realised volatility
               </li>
               <li>
-                • <B>Bounded, always</B> — every structure has a defined maximum loss before it is
+                • <B>Bounded, always</B> - every structure has a defined maximum loss before it is
                 ever proposed
               </li>
               <li>
-                • <B>Checkable, forever</B> — a tamper-evident ledger and the broker&apos;s own
+                • <B>Checkable, forever</B> - a tamper-evident ledger and the broker&apos;s own
                 marks on the dashboard
               </li>
             </ul>
@@ -326,7 +326,7 @@ export default function DocsPage() {
             <KV
               rows={[
                 ["Live desk", <G key="a" href="/dashboard/">deflow dashboard</G>],
-                ["Decision ledger", <G key="b" href="/ledger/">deflow ledger — verify the chain</G>],
+                ["Decision ledger", <G key="b" href="/ledger/">deflow ledger - verify the chain</G>],
                 ["GitHub", <G key="c" href={GITHUB_URL} external>mrnetwork0001/Deflow</G>],
                 ["Broker", <span key="d" className="font-sans text-[13.5px] text-body">Alpaca paper account · options level 3 · $100,000 start</span>],
                 ["Reasoning model", <Chip key="e">Qwen/Qwen2.5-72B-Instruct via Featherless</Chip>],
@@ -350,7 +350,7 @@ export default function DocsPage() {
             <P>
               The Analyst measures each name and refuses anything without a measured edge. The
               Structurer builds candidate spreads from the live chain. The reasoning model picks
-              among them — <B>among them only</B>; it cannot invent a trade. The Auditor attacks the
+              among them - <B>among them only</B>; it cannot invent a trade. The Auditor attacks the
               choice with Monte Carlo and real transaction costs. The gate rules. The Executor
               routes. And on the next cycle the desk reconciles: an accepted order is not a fill,
               and the book only changes when the broker confirms one.
@@ -381,7 +381,7 @@ export default function DocsPage() {
                   <span key="3" className="font-mono text-[12.5px] text-gain">Agent 3 · Adversarial Risk Auditor</span>,
                   <span key="3b" className="max-w-[52ch] font-sans text-[13.5px] leading-relaxed text-muted">
                     argues against every proposal: jump-diffusion Monte Carlo under the physical
-                    measure, round-trip cost from the real bid/ask — a fatal objection kills the
+                    measure, round-trip cost from the real bid/ask - a fatal objection kills the
                     trade before the gate sees it
                   </span>,
                 ],
@@ -399,15 +399,15 @@ export default function DocsPage() {
           <DocSection id="edge">
             <H2>The edge: variance premium</H2>
             <P>
-              Option prices embed a forecast of volatility. Deflow builds its own —{" "}
+              Option prices embed a forecast of volatility. Deflow builds its own -{" "}
               <B>bipower variation</B>, a jump-robust estimator that a single earnings gap
-              can&apos;t distort — and trades only the gap between the two, in either direction:
+              can&apos;t distort - and trades only the gap between the two, in either direction:
             </P>
             <KV
               rows={[
-                ["Implied rich vs forecast (> +2%)", <span key="a" className="font-sans text-[13.5px] text-body">sell premium — credit spreads</span>],
-                ["Implied cheap vs forecast (< −1%)", <span key="b" className="font-sans text-[13.5px] text-body">buy convexity — debit spreads</span>],
-                ["Inside the band", <span key="c" className="font-sans text-[13.5px] text-body">stand down — no measured edge, no trade</span>],
+                ["Implied rich vs forecast (> +2%)", <span key="a" className="font-sans text-[13.5px] text-body">sell premium - credit spreads</span>],
+                ["Implied cheap vs forecast (< −1%)", <span key="b" className="font-sans text-[13.5px] text-body">buy convexity - debit spreads</span>],
+                ["Inside the band", <span key="c" className="font-sans text-[13.5px] text-body">stand down - no measured edge, no trade</span>],
               ]}
             />
             <P>
@@ -423,7 +423,7 @@ export default function DocsPage() {
             <H2>The deterministic gate</H2>
             <P>
               Twelve circuit breakers, pure standard-library Python, <B>zero LLM involvement</B>,
-              microseconds per evaluation. All twelve always run — no short-circuiting — and the
+              microseconds per evaluation. All twelve always run - no short-circuiting - and the
               gate runs twice: once at approval, again immediately before the order leaves. It
               fails closed, and it sizes trades down before it vetoes them.
             </P>
@@ -435,7 +435,7 @@ export default function DocsPage() {
             />
             <P>
               Try it yourself: the dashboard&apos;s risk-gate panel submits a deliberately bad trade
-              — a naked call — and shows which breakers trip, live, with the gate&apos;s own
+              - a naked call - and shows which breakers trip, live, with the gate&apos;s own
               wording.
             </P>
           </DocSection>
@@ -445,7 +445,7 @@ export default function DocsPage() {
             <P>
               <B>Submitted is not filled.</B> Entries and exits both live as working orders until
               the broker confirms a fill; only then does the book change, at the price actually
-              given. A stale order is cancelled — and dropped only when the broker confirms the
+              given. A stale order is cancelled - and dropped only when the broker confirms the
               cancel, because a cancel acknowledgement is a request, not an outcome, and an order
               can still fill while it is pending.
             </P>
@@ -454,7 +454,7 @@ export default function DocsPage() {
               with the concession always against the desk. Positions carry a profit target that
               tightens as expiry approaches, a stop at 50% of max loss, and a hard exit at 3 days
               to expiry. A mark that falls outside the structure&apos;s own payoff bounds is flagged
-              suspect and cannot fire an exit — bad quote data defers one cycle rather than
+              suspect and cannot fire an exit - bad quote data defers one cycle rather than
               realising a phantom loss.
             </P>
           </DocSection>
@@ -464,8 +464,8 @@ export default function DocsPage() {
           <DocSection id="ledger">
             <H2>Decision ledger</H2>
             <P>
-              Every event the desk produces — analyst views, proposals, audits, gate verdicts,
-              orders, fills, exits, refusals — is appended to a ledger where{" "}
+              Every event the desk produces - analyst views, proposals, audits, gate verdicts,
+              orders, fills, exits, refusals - is appended to a ledger where{" "}
               <B>each entry carries the SHA-256 of the one before it</B>. Altering or deleting any
               historical record breaks the chain from that point forward, visibly and permanently.
             </P>
@@ -482,9 +482,9 @@ export default function DocsPage() {
             <H2>Refusals</H2>
             <P>
               Most systems only show what they did. Deflow&apos;s most informative output is what it{" "}
-              <B>declined to do</B>: every refusal is recorded with the stage that made it — the
+              <B>declined to do</B>: every refusal is recorded with the stage that made it - the
               analyst saw no edge, the model abstained, the auditor objected fatally, or the gate
-              vetoed — and its exact reason. The dashboard&apos;s refusals panel is the desk&apos;s
+              vetoed - and its exact reason. The dashboard&apos;s refusals panel is the desk&apos;s
               actual behaviour, not an absence of it.
             </P>
           </DocSection>
@@ -501,11 +501,11 @@ cp .env.example .env   # add your Alpaca + Featherless keys
             </pre>
             <KV
               rows={[
-                ["No credentials", <span key="a" className="font-sans text-[13.5px] text-body">runs against a seeded simulated market — everything works, nothing is live</span>],
+                ["No credentials", <span key="a" className="font-sans text-[13.5px] text-body">runs against a seeded simulated market - everything works, nothing is live</span>],
                 [<Chip key="b1">DEFLOW_DRY_RUN=true</Chip>, <span key="b" className="font-sans text-[13.5px] text-body">full pipeline, no orders submitted</span>],
                 [<Chip key="c1">DEFLOW_PORT</Chip>, <span key="c" className="font-sans text-[13.5px] text-body">API + dashboard port (default 8000)</span>],
                 [<Chip key="d1">DEFLOW_CYCLE_SECONDS</Chip>, <span key="d" className="font-sans text-[13.5px] text-body">cycle cadence (default 300)</span>],
-                ["Deploy scripts", <span key="e" className="font-sans text-[13.5px] text-body">deploy/ — additive installs for a shared VPS, systemd unit, Caddy site</span>],
+                ["Deploy scripts", <span key="e" className="font-sans text-[13.5px] text-body">deploy/ - additive installs for a shared VPS, systemd unit, Caddy site</span>],
               ]}
             />
             <P>
@@ -518,7 +518,7 @@ cp .env.example .env   # add your Alpaca + Featherless keys
             <H2>HTTP API</H2>
             <P>
               Read-only observability plus two deliberate write endpoints. There is no endpoint that
-              places an order directly — orders exist only as the output of a full pipeline that has
+              places an order directly - orders exist only as the output of a full pipeline that has
               cleared the gate.
             </P>
             <KV
@@ -538,7 +538,7 @@ cp .env.example .env   # add your Alpaca + Featherless keys
                 [
                   <B key="q1">Is this real money?</B>,
                   <span key="a1" className="max-w-[52ch] font-sans text-[13.5px] leading-relaxed text-muted">
-                    No — a live Alpaca <em>paper</em> account with real market data and real order
+                    No - a live Alpaca <em>paper</em> account with real market data and real order
                     routing. Simulated results are hypothetical and do not represent actual trading.
                   </span>,
                 ],
@@ -571,7 +571,7 @@ cp .env.example .env   # add your Alpaca + Featherless keys
                   <B key="q5">Why so few trades?</B>,
                   <span key="a5" className="max-w-[52ch] font-sans text-[13.5px] leading-relaxed text-muted">
                     By design. The desk trades only when it measures an edge and the gate agrees the
-                    risk fits — a desk that must trade every cycle is a random number generator with
+                    risk fits - a desk that must trade every cycle is a random number generator with
                     commissions.
                   </span>,
                 ],

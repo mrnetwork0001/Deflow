@@ -261,14 +261,14 @@ export function RiskGatePanel({ envelope }: { envelope: Record<string, any> }) {
               </div>
             ) : (
               <span className="text-faint">
-                awaiting a proposal — the verdict and its timing appear here
+                awaiting a proposal - the verdict and its timing appear here
               </span>
             )}
           </div>
 
           <div className="tabular mt-3 border-t border-ink-line pt-2.5 font-mono text-[10px] text-faint">
-            {evaluations === null ? "—" : evaluations.toLocaleString()} evaluations ·{" "}
-            {vetoes === null ? "—" : vetoes.toLocaleString()} vetoes this session
+            {evaluations === null ? "-" : evaluations.toLocaleString()} evaluations ·{" "}
+            {vetoes === null ? "-" : vetoes.toLocaleString()} vetoes this session
           </div>
         </div>
 
@@ -314,7 +314,7 @@ export function RiskGatePanel({ envelope }: { envelope: Record<string, any> }) {
                       value === null ? "text-faint" : tripped ? "text-loss" : "text-body"
                     }`}
                   >
-                    {value ?? "—"}
+                    {value ?? "-"}
                   </span>
 
                   {/* Held in the layout at all times so the rows do not reflow on a verdict. */}

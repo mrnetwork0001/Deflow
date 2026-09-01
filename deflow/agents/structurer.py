@@ -1,4 +1,4 @@
-"""Agent 2 — Options Structurer.
+"""Agent 2 - Options Structurer.
 
 Turns the Analyst's stance into concrete, priced, defined-risk spreads built
 from live quotes.
@@ -118,7 +118,7 @@ class OptionsStructurer:
 
         The open-interest test is applied only when open-interest data actually
         arrived. If every contract in the chain reports zero, that is a data
-        problem, not a market in which nothing is open — and silently applying
+        problem, not a market in which nothing is open - and silently applying
         the filter anyway rejects the entire universe on every symbol while
         reporting nothing worse than "no candidates".
 
@@ -138,7 +138,7 @@ class OptionsStructurer:
 
         if all(q.open_interest <= 0 for q in priced):
             log.warning(
-                "Open interest is zero across all %d priced contracts for %s — treating the "
+                "Open interest is zero across all %d priced contracts for %s - treating the "
                 "signal as unavailable and screening on bid/ask width alone. Check the "
                 "contracts-endpoint join.",
                 len(priced), priced[0].symbol[:6].rstrip("0123456789") or "?",
@@ -536,7 +536,7 @@ class OptionsStructurer:
 
         if candidate.ev_physical <= 0:
             candidate.notes.append(
-                f"Negative expectancy at realised vol ({candidate.ev_physical:+,.0f} USD) — "
+                f"Negative expectancy at realised vol ({candidate.ev_physical:+,.0f} USD) - "
                 "the premium collected does not cover the tail."
             )
 

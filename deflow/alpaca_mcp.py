@@ -150,7 +150,7 @@ class AlpacaMCPClient:
                 except Exception:
                     detail = ""
             self.stop()
-            return McpResult(False, error=f"{init.error}{' — ' + detail if detail else ''}")
+            return McpResult(False, error=f"{init.error}{' - ' + detail if detail else ''}")
         self.server_info = (init.data or {}).get("serverInfo", {})
         self._notify("notifications/initialized")
 

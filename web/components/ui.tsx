@@ -56,7 +56,7 @@ export function Stat({
           missing ? "text-faint" : tones[tone]
         }`}
       >
-        {missing ? "—" : value}
+        {missing ? "-" : value}
       </div>
       {/* Reserved even when empty so a row of stats keeps one baseline as
           subtitles appear and disappear with the data. */}

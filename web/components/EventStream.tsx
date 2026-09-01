@@ -37,13 +37,13 @@ const TONE: Record<string, string> = {
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
 /** A missing measurement prints as an em dash. A zero here would be a claim. */
-const show = (v: unknown, format: (n: number) => string) => (isNum(v) ? format(v) : "—");
+const show = (v: unknown, format: (n: number) => string) => (isNum(v) ? format(v) : "-");
 const int = (v: unknown) => show(v, (n) => String(n));
-const sym = (v: unknown) => (typeof v === "string" && v ? v : "—");
+const sym = (v: unknown) => (typeof v === "string" && v ? v : "-");
 
 function clock(at: string): string {
   const ms = Date.parse(at);
-  return Number.isNaN(ms) ? "—" : new Date(ms).toLocaleTimeString("en-GB", { hour12: false });
+  return Number.isNaN(ms) ? "-" : new Date(ms).toLocaleTimeString("en-GB", { hour12: false });
 }
 
 /** One-line human summary per event type. */
@@ -57,17 +57,17 @@ function describe(e: StreamEvent): string {
     case "cycle_end":
       return `${int(p.orders_submitted)} routed · ${int(p.vetoed)} vetoed · equity ${show(p.performance?.equity, (n) => money(n, 0))}`;
     case "analyst_view":
-      return `${sym(p.symbol)} ${p.stance ?? "—"} · VRP ${show(p.variance_premium, (n) => pct(n, 1))} · IVR ${show(p.iv_rank, (n) => pct(n, 0))}`;
+      return `${sym(p.symbol)} ${p.stance ?? "-"} · VRP ${show(p.variance_premium, (n) => pct(n, 1))} · IVR ${show(p.iv_rank, (n) => pct(n, 0))}`;
     case "candidates_built":
       return `${sym(p.symbol)} ${int(p.count)} × ${String(p.strategy ?? "").replace(/_/g, " ")}`;
     case "reasoning_choice":
       return `${sym(p.symbol)} ${p.used_llm ? p.model : "deterministic"} → ${p.index === -1 ? "abstain" : `#${p.index}`} @ ${show(p.confidence, (n) => pct(n, 0))}`;
     case "audit":
-      return `${sym(p.symbol)} ${p.passed ? "pass" : "FAIL"} · EV ${show(p.monte_carlo_physical?.mean_pnl, (n) => money(n, 0))} · ${Array.isArray(p.objections) ? p.objections.length : "—"} objection(s)`;
+      return `${sym(p.symbol)} ${p.passed ? "pass" : "FAIL"} · EV ${show(p.monte_carlo_physical?.mean_pnl, (n) => money(n, 0))} · ${Array.isArray(p.objections) ? p.objections.length : "-"} objection(s)`;
     case "risk_gate":
-      return `${sym(p.symbol)} ${int(p.breakers_passed)}/${int(p.breakers_total)} in ${show(p.elapsed_us, (n) => n.toFixed(1))}µs — ${p.approved ? "approved" : p.reason ?? "refused"}`;
+      return `${sym(p.symbol)} ${int(p.breakers_passed)}/${int(p.breakers_total)} in ${show(p.elapsed_us, (n) => n.toFixed(1))}µs - ${p.approved ? "approved" : p.reason ?? "refused"}`;
     case "execution":
-      return `${sym(p.symbol)} ${p.submitted ? "routed" : "failed"} ${int(p.contracts)}× via ${p.route ?? "—"}${p.simulated ? " (sim)" : ""}`;
+      return `${sym(p.symbol)} ${p.submitted ? "routed" : "failed"} ${int(p.contracts)}× via ${p.route ?? "-"}${p.simulated ? " (sim)" : ""}`;
     case "exit":
       return `${sym(p.symbol)} ${p.reason ?? "closed"}`;
     default:
@@ -180,12 +180,12 @@ export function EventStream() {
           {events.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-[11.5px] leading-relaxed">
               {link === "live" ? (
-                <span className="text-faint">connected — waiting for the next cycle</span>
+                <span className="text-faint">connected - waiting for the next cycle</span>
               ) : link === "connecting" ? (
                 <span className="text-faint">opening stream…</span>
               ) : (
                 <span className="text-warn">
-                  stream unreachable — start the desk with{" "}
+                  stream unreachable - start the desk with{" "}
                   <span className="text-body">python main.py</span>
                 </span>
               )}
@@ -213,7 +213,7 @@ export function EventStream() {
                 <li className="flex gap-2 border-t border-warn/25 bg-warn/[0.05] px-3 py-2 text-[10.5px] text-warn">
                   <span aria-hidden>⚠</span>
                   <span>
-                    {link === "offline" ? "stream closed" : "stream interrupted"} — nothing above is
+                    {link === "offline" ? "stream closed" : "stream interrupted"} - nothing above is
                     newer than {clock(last.at)}
                   </span>
                 </li>

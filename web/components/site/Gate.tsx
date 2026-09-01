@@ -96,7 +96,7 @@ export function Gate() {
           <div className="mt-5 min-h-[168px] rounded-lg border border-ink-line bg-ink p-4 font-mono text-[11.5px]">
             {offline ? (
               <span className="text-warn">
-                desk unreachable — start it with <span className="text-body">python main.py</span>
+                desk unreachable - start it with <span className="text-body">python main.py</span>
               </span>
             ) : busy ? (
               <span className="text-faint">running twelve breakers…</span>
@@ -125,7 +125,7 @@ export function Gate() {
               </div>
             ) : (
               <span className="text-faint">
-                awaiting a proposal — the verdict and its timing appear here
+                awaiting a proposal - the verdict and its timing appear here
               </span>
             )}
           </div>
