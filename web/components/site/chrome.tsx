@@ -3,6 +3,8 @@
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
+import { Reveal } from "./Reveal";
+
 export const GITHUB_URL = "https://github.com/mrnetwork0001/Deflow";
 
 /** The icon mark alone — a capped payoff diagram in a rounded square. */
@@ -73,7 +75,7 @@ export function Nav() {
 
         <div className="hidden items-center gap-8 lg:flex">
           {NAV.map(([label, href]) => (
-            <a key={href} href={href} className="text-[13px] text-muted transition-colors hover:text-body">
+            <a key={href} href={href} className="underline-grow text-[13px] text-muted transition-colors hover:text-body">
               {label}
             </a>
           ))}
@@ -121,20 +123,30 @@ export function Section({
       <div className="mx-auto max-w-content">
         {(eyebrow || title || lead) && (
           <header className={center ? "mx-auto max-w-2xl text-center" : "max-w-3xl"}>
-            {eyebrow && <div className="eyebrow mb-4">{eyebrow}</div>}
+            {eyebrow && (
+              <Reveal className="eyebrow mb-4" y={8}>{eyebrow}</Reveal>
+            )}
             {title && (
-              <h2 className="font-sans text-[30px] font-semibold leading-[1.15] tracking-tightest text-body sm:text-[40px]">
-                {title}
-              </h2>
+              <Reveal delay={60}>
+                <h2 className="font-sans text-[30px] font-semibold leading-[1.15] tracking-tightest text-body sm:text-[40px]">
+                  {title}
+                </h2>
+              </Reveal>
             )}
             {lead && (
-              <p className={`mt-5 font-sans text-[15px] leading-[1.7] text-muted ${center ? "" : "max-w-prose"}`}>
-                {lead}
-              </p>
+              <Reveal delay={120}>
+                <p className={`mt-5 font-sans text-[15px] leading-[1.7] text-muted ${center ? "" : "max-w-prose"}`}>
+                  {lead}
+                </p>
+              </Reveal>
             )}
           </header>
         )}
-        {children && <div className={eyebrow || title || lead ? "mt-14" : ""}>{children}</div>}
+        {children && (
+          <Reveal delay={180} className={eyebrow || title || lead ? "mt-14" : ""}>
+            {children}
+          </Reveal>
+        )}
       </div>
     </section>
   );
@@ -146,7 +158,7 @@ export function Card({
   return (
     <div
       className={`rounded-xl border border-ink-line bg-ink-card ${
-        hover ? "transition-colors duration-300 hover:border-ink-hair" : ""
+        hover ? "lift hover:border-ink-hair" : ""
       } ${className}`}
     >
       {children}

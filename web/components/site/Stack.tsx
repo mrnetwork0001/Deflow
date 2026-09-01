@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, Section } from "./chrome";
+import { RevealGroup } from "./Reveal";
 
 const SURFACES = [
   {
@@ -37,6 +38,7 @@ export function Stack() {
       center
     >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <RevealGroup step={80}>
         {SURFACES.map((c) => (
           <Card key={c.t} className="flex flex-col p-6">
             <h3 className="font-sans text-[16px] font-semibold text-body">{c.t}</h3>
@@ -47,6 +49,7 @@ export function Stack() {
             </p>
           </Card>
         ))}
+        </RevealGroup>
       </div>
 
       <Card className="mt-4 overflow-hidden p-6" hover={false}>

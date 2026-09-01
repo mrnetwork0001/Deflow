@@ -73,11 +73,11 @@ export function Footer() {
                   <li key={label}>
                     {external ? (
                       <a href={href} target="_blank" rel="noreferrer"
-                         className="font-sans text-[13px] text-muted transition-colors hover:text-gain">
+                         className="underline-grow font-sans text-[13px] text-muted transition-colors hover:text-gain">
                         {label}
                       </a>
                     ) : (
-                      <Link href={href} className="font-sans text-[13px] text-muted transition-colors hover:text-gain">
+                      <Link href={href} className="underline-grow font-sans text-[13px] text-muted transition-colors hover:text-gain">
                         {label}
                       </Link>
                     )}

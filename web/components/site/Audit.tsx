@@ -1,6 +1,7 @@
 "use client";
 
 import { ButtonLink, Card, Section } from "./chrome";
+import { RevealGroup } from "./Reveal";
 import { ChainGraphic } from "./visuals";
 
 export function Audit() {
@@ -27,6 +28,7 @@ export function Audit() {
         </Card>
 
         <div className="grid gap-4">
+          <RevealGroup step={90}>
           {[
             ["Tamper-evident", "Modify entry 3 of 6 and verification reports broken_at: 3. Delete one and it reports the same. A log tells you what a system says it did; this tells you whether the story was edited afterwards."],
             ["Refusals included", "Stand-downs, abstentions and vetoes are logged with the numbers that produced them. A desk that records only its fills cannot be audited — and for this strategy, the refusals are most of the behaviour."],
@@ -37,6 +39,7 @@ export function Audit() {
               <p className="mt-2.5 font-sans text-[13.5px] leading-[1.7] text-muted">{d}</p>
             </Card>
           ))}
+          </RevealGroup>
           <div className="pt-1">
             <ButtonLink href="/ledger/" variant="ghost">Read the live ledger</ButtonLink>
           </div>

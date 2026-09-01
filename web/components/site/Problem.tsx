@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, Section } from "./chrome";
+import { RevealGroup } from "./Reveal";
 
 const FAILURES = [
   {
@@ -39,6 +40,7 @@ export function Problem() {
       center
     >
       <div className="grid gap-4 md:grid-cols-3">
+        <RevealGroup step={90}>
         {FAILURES.map((f, i) => (
           <Card key={f.tag} className="flex flex-col p-6">
             <div className="flex items-baseline gap-3">
@@ -49,6 +51,7 @@ export function Problem() {
             <p className="mt-3 font-sans text-[13.5px] leading-[1.7] text-muted">{f.body}</p>
           </Card>
         ))}
+        </RevealGroup>
       </div>
     </Section>
   );

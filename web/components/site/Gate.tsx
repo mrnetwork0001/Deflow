@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { API_BASE } from "@/lib/api";
 import { Section } from "./chrome";
+import { RevealGroup } from "./Reveal";
 
 const BREAKERS: [number, string, string][] = [
   [1, "defined_risk_structure", "every short covered by a long of the same right"],
@@ -132,6 +133,7 @@ export function Gate() {
 
         {/* ── the twelve ─────────────────────────────────────────────── */}
         <ol className="divide-y divide-ink-line overflow-hidden rounded-xl border border-ink-line bg-ink-card">
+          <RevealGroup step={38} y={8}>
           {BREAKERS.map(([id, name, limit]) => {
             const hit = result?.breakers.find((b) => b.id === id);
             const tripped = hit && !hit.passed;
@@ -166,6 +168,7 @@ export function Gate() {
               </li>
             );
           })}
+          </RevealGroup>
         </ol>
       </div>
 

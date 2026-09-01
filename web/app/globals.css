@@ -51,6 +51,27 @@ body {
   background-size: 64px 64px;
 }
 
+/* Cards lift very slightly on hover. Enough to feel responsive, not enough
+   to shift the layout or draw attention away from what is being read. */
+.lift {
+  transition: border-color 240ms ease, background-color 240ms ease, transform 240ms cubic-bezier(.22,.8,.3,1);
+}
+.lift:hover { transform: translateY(-2px); }
+
+/* Anchor links pull in their underline rather than snapping it on. */
+.underline-grow { position: relative; }
+.underline-grow::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: -3px;
+  height: 1px; width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 280ms cubic-bezier(.22,.8,.3,1);
+}
+.underline-grow:hover::after { transform: scaleX(1); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .001ms !important;
@@ -58,4 +79,6 @@ body {
     transition-duration: .001ms !important;
     scroll-behavior: auto !important;
   }
+  .lift:hover { transform: none; }
+  .underline-grow::after { display: none; }
 }

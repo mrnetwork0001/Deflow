@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnalystView, getJSON } from "@/lib/api";
 import { Section } from "./chrome";
+import { RevealGroup } from "./Reveal";
 
 const FALLBACK = ["SPY", "QQQ", "IWM", "NVDA", "AAPL", "MSFT", "AMD", "TSLA"];
 
@@ -82,6 +83,7 @@ export function Universe() {
         </div>
 
         <ol className="divide-y divide-ink-line">
+          <RevealGroup step={45} y={8}>
           {(rows ?? FALLBACK.map((s) => ({ symbol: s }) as AnalystView)).map((v) => {
             const st = v.stance ? STANCE[v.stance] : null;
             const vrp = v.variance_premium ?? 0;
@@ -119,6 +121,7 @@ export function Universe() {
               </li>
             );
           })}
+          </RevealGroup>
         </ol>
       </div>
     </Section>
