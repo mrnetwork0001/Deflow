@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -25,7 +26,16 @@ from typing import Any, Dict, Iterator, List, Optional
 
 from .config import DATA_DIR
 
+try:  # POSIX only; Windows falls back to thread-level locking alone.
+    import fcntl
+except ImportError:  # pragma: no cover
+    fcntl = None  # type: ignore[assignment]
+
 log = logging.getLogger("deflow.ledger")
+
+# How far back to read when recovering the chain head. One record is well under
+# 8 KB, so this always spans the final line.
+_TAIL_BYTES = 1 << 16
 
 GENESIS_HASH = "0" * 64
 
@@ -89,23 +99,68 @@ class DecisionLedger:
 
     # -- writing ------------------------------------------------------------
 
-    def append(self, event: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Append one event and return the written record."""
-        with self._lock:
-            body = {
-                "seq": self._count,
-                "at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
-                "event": event,
-                "payload": payload,
-                "prev_hash": self._head,
-            }
-            record = {**body, "hash": hash_record(self._head, body)}
+    @staticmethod
+    def _tail_record(fh) -> Optional[Dict[str, Any]]:
+        """Last complete record in an open file, or None if empty."""
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        if size == 0:
+            return None
+        fh.seek(max(0, size - _TAIL_BYTES))
+        lines = [ln for ln in fh.read().splitlines() if ln.strip()]
+        for line in reversed(lines):
             try:
-                with self.path.open("a") as fh:
-                    fh.write(json.dumps(record, default=str) + "\n")
+                return json.loads(line)
+            except json.JSONDecodeError:
+                continue
+        return None
+
+    def append(self, event: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Append one event and return the written record.
+
+        Locked at the *file* level, not just within the process. The chain is
+        the artefact that makes this desk's P&L checkable, and a second writer
+        breaks it: two Deflow instances sharing a data directory -- a stray
+        background process, a `--once` run beside a live server, a deployment
+        that scales to two replicas -- interleave their appends, and every
+        record after the collision points at a predecessor that is no longer
+        its neighbour.
+
+        Holding an exclusive lock and re-deriving the head from the file
+        underneath it makes concurrent writers chain onto each other instead of
+        forking. The alternative -- an in-memory head -- is correct only while
+        exactly one process is running, which is not a property a trading
+        system should quietly assume.
+        """
+        with self._lock:
+            try:
+                with self.path.open("a+") as fh:
+                    if fcntl is not None:
+                        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+                    try:
+                        tail = self._tail_record(fh)
+                        if tail is not None:
+                            self._head = tail.get("hash", self._head)
+                            self._count = int(tail.get("seq", self._count - 1)) + 1
+
+                        body = {
+                            "seq": self._count,
+                            "at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+                            "event": event,
+                            "payload": payload,
+                            "prev_hash": self._head,
+                        }
+                        record = {**body, "hash": hash_record(self._head, body)}
+                        fh.write(json.dumps(record, default=str) + "\n")
+                        fh.flush()
+                        os.fsync(fh.fileno())
+                    finally:
+                        if fcntl is not None:
+                            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
             except OSError as exc:
                 log.error("Ledger write failed: %s", exc)
-                return record
+                return {"seq": self._count, "event": event, "payload": payload, "error": str(exc)}
+
             self._head = record["hash"]
             self._count += 1
             return record
