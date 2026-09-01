@@ -444,9 +444,15 @@ class TradingDesk:
                 record["outcome"] = "not_found"
 
             elif order.age_seconds() > STALE_ORDER_SECONDS:
+                # A 204 from the cancel endpoint is the request being ACCEPTED;
+                # the order can still fill while pending_cancel. Dropping on
+                # the ack meant a fill racing the cancel was never adopted --
+                # the desk released the risk budget, then owned a position it
+                # had no record of. Keep the order pending; the next poll sees
+                # the true terminal state ("canceled" drops it, "filled" books
+                # it above).
                 cancelled = self.executor.cancel(order.order_id)
-                self.portfolio.drop_pending(order.id, f"stale after {order.age_seconds():.0f}s")
-                record["outcome"] = "cancelled_stale"
+                record["outcome"] = "cancel_requested"
                 record["cancel_ok"] = cancelled
 
             else:
@@ -461,22 +467,36 @@ class TradingDesk:
     def _reconcile_exits(self) -> List[Dict[str, Any]]:
         """Ask the broker what happened to every working CLOSING order.
 
-        Mirrors _reconcile_fills, with one deliberate asymmetry: a stale entry
-        order is dropped whether or not its cancel succeeded, because the worst
-        case is a fill the next reconcile adopts. A stale EXIT order is dropped
-        only after a confirmed cancel -- if the cancel failed and a fresh close
-        went out anyway, both could fill, and closing the same structure twice
-        is a brand-new naked position in the opposite direction.
+        Mirrors _reconcile_fills. Nothing here is dropped on a cancel ACK or
+        a single failed status poll: an order leaves the pending book only on
+        a broker-observed terminal state (filled, canceled, rejected...) or a
+        streak of consecutive not-founds. A dropped exit re-arms exits_due,
+        and a second close alongside a live first one is a brand-new naked
+        position in the opposite direction -- so the bias is always to keep
+        the record one cycle longer, never to forget an order that might
+        still trade.
         """
         if not self.portfolio.pending_exits:
             return []
 
         outcomes: List[Dict[str, Any]] = []
         for exit_order in list(self.portfolio.pending_exits.values()):
+            # Crash recovery: an exit persisted before its submit window closed
+            # may not know its broker id. The deterministic client id was
+            # written for exactly this -- ask by name before polling.
+            if not exit_order.order_id and exit_order.client_order_id:
+                rest = self.executor.rest
+                if rest is not None:
+                    found = rest.get_order_by_client_id(exit_order.client_order_id)
+                    if found.ok and isinstance(found.data, dict) and found.data.get("id"):
+                        exit_order.order_id = str(found.data["id"])
+                        self.portfolio.save()
+
             state = self.executor.order_status(exit_order.order_id)
             status = state["status"]
             exit_order.status = status
             exit_order.checks += 1
+            filled_qty = state.get("filled_qty") or 0
 
             record = {
                 "position_id": exit_order.position_id,
@@ -485,6 +505,9 @@ class TradingDesk:
                 "status": status,
                 "age_seconds": round(exit_order.age_seconds(), 1),
             }
+
+            if state["found"]:
+                exit_order.misses = 0
 
             if status == "filled":
                 closed = self.portfolio.confirm_exit_fill(
@@ -495,28 +518,60 @@ class TradingDesk:
                     record["realized_pnl"] = round(closed.realized_pnl, 2)
 
             elif status in {"canceled", "cancelled", "expired", "rejected", "suspended"}:
-                self.portfolio.drop_pending_exit(exit_order.position_id, status)
-                record["outcome"] = "dead"
+                if filled_qty > 0:
+                    # Part of the close traded before the order died. The book
+                    # cannot represent a partially closed structure, and a
+                    # fresh full-size close would exit contracts that no longer
+                    # exist -- rejected forever at best, an inverted naked
+                    # position at worst. Freeze: the pending record stays, so
+                    # exits_due() cannot resubmit, and a human reconciles.
+                    exit_order.status = "partial_terminal"
+                    record["outcome"] = "partial_terminal"
+                    log.error(
+                        "Exit for %s died %s with %s contracts already filled. "
+                        "Automated exits for this position are FROZEN; reconcile "
+                        "against the broker by hand.",
+                        exit_order.position_id, status, filled_qty,
+                    )
+                else:
+                    self.portfolio.drop_pending_exit(exit_order.position_id, status)
+                    record["outcome"] = "dead"
 
             elif not state["found"]:
-                self.portfolio.drop_pending_exit(exit_order.position_id, "not found at broker")
-                record["outcome"] = "not_found"
+                # One not-found is indistinguishable from a dropped connection
+                # or a rate limit: alpaca_rest maps every transport failure to
+                # the same shape as a 404. Dropping here re-armed exits_due in
+                # the SAME cycle -- a second close while the first still
+                # rested. Only a streak means the order really is not there.
+                exit_order.misses += 1
+                if exit_order.misses >= 3:
+                    self.portfolio.drop_pending_exit(
+                        exit_order.position_id,
+                        f"not found at broker on {exit_order.misses} consecutive checks",
+                    )
+                    record["outcome"] = "not_found"
+                else:
+                    record["outcome"] = "status_unknown"
 
             elif exit_order.age_seconds() > STALE_ORDER_SECONDS:
-                if self.executor.cancel(exit_order.order_id):
-                    self.portfolio.drop_pending_exit(
-                        exit_order.position_id, f"stale after {exit_order.age_seconds():.0f}s"
-                    )
-                    record["outcome"] = "cancelled_stale"
+                if filled_qty > 0:
+                    # Never cancel a partially filled close: the remainder is
+                    # still doing exactly what the desk wants.
+                    record["outcome"] = "partial_working"
                 else:
-                    # Keep it pending and try the cancel again next cycle.
-                    record["outcome"] = "cancel_failed"
+                    # Ask for the cancel but keep the record: a 204 is the
+                    # broker ACCEPTING the request, and the order can still
+                    # fill while pending_cancel. Dropping on the ack lost that
+                    # fill. The next poll observes the true terminal state --
+                    # "canceled" drops it above, "filled" books it above.
+                    self.executor.cancel(exit_order.order_id)
+                    record["outcome"] = "cancel_requested"
 
             else:
-                record["outcome"] = "working"
+                record["outcome"] = "partial_working" if filled_qty > 0 else "working"
 
             outcomes.append(record)
-            if record["outcome"] != "working":
+            if record["outcome"] not in {"working", "partial_working"}:
                 self._emit("exit_fill", record)
 
         return outcomes
@@ -546,8 +601,22 @@ class TradingDesk:
         for position, reason in self.portfolio.exits_due():
             if position.id in rolled_ids:
                 continue
+            # Intent is persisted BEFORE the order exists. The order becomes
+            # live inside close(); writing the record only afterwards left a
+            # window where a crash or redeploy restored a book with no memory
+            # of a close resting at the broker -- and the next cycle submitted
+            # another. The client id is deterministic per (position, attempt),
+            # so a duplicate of the same attempt is refused by Alpaca rather
+            # than doubling the close, and a record with no broker id yet can
+            # still be looked up by name.
+            position.exit_attempts += 1
+            cid = f"deflow-x-{position.id[:12]}-{position.exit_attempts:02d}"
+            self.portfolio.add_pending_exit(position.id, "", reason, client_order_id=cid)
+
             result = self.executor.close(
-                position.proposal, reason, mark_premium=position.mark_premium
+                position.proposal, reason,
+                mark_premium=position.mark_premium,
+                client_order_id=cid,
             )
             record = {
                 "position_id": position.id,
@@ -564,13 +633,18 @@ class TradingDesk:
             # risk budget while the legs were still live at the broker under a
             # resting limit order -- a phantom flat. The close becomes real in
             # _reconcile_exits(), when the broker says it traded.
-            if result.dry_run:
-                record["outcome"] = "dry_run"
-            elif result.submitted:
-                self.portfolio.add_pending_exit(
-                    position.id, result.order_id, reason,
-                    limit_price=result.limit_price, simulated=result.simulated,
+            if result.dry_run or not result.submitted:
+                self.portfolio.drop_pending_exit(
+                    position.id, "dry run" if result.dry_run else "submit failed"
                 )
+                record["outcome"] = "dry_run" if result.dry_run else "submit_failed"
+            else:
+                pending = self.portfolio.pending_exits.get(position.id)
+                if pending is not None:
+                    pending.order_id = result.order_id
+                    pending.limit_price = result.limit_price
+                    pending.simulated = result.simulated
+                    self.portfolio.save()
                 record["outcome"] = "exit_working"
             self._emit("exit", record)
             exits.append(record)
@@ -595,6 +669,11 @@ class TradingDesk:
             by_symbol.setdefault(q.symbol[:6].rstrip("0123456789"), []).append(q)
 
         for position in list(self.portfolio.open.values()):
+            # Rolling a position whose close is already working could fill
+            # both: flat plus a fresh spread the book cannot attribute. And a
+            # suspect mark fails the same test here as at the exit guard.
+            if position.id in self.portfolio.pending_exits or position.mark_suspect:
+                continue
             spot = spots.get(position.symbol, position.proposal.underlying_price)
             why = rolls.should_consider(
                 position.proposal, spot, position.unrealized_pnl, position.rolls

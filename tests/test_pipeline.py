@@ -1092,7 +1092,9 @@ def test_an_order_the_broker_does_not_know_is_never_assumed_filled(tmp_path, mon
 
 
 def test_a_stale_working_order_is_cancelled(tmp_path, monkeypatch):
-    """A limit priced off a 20-minute-old quote is not the approved trade."""
+    """A limit priced off a 20-minute-old quote is not the approved trade --
+    but the drop waits for the broker to CONFIRM the cancel, because the
+    order can fill while pending_cancel."""
     import deflow.desk as desk_module
 
     gate = DeterministicRiskGate(100_000.0)
@@ -1106,6 +1108,14 @@ def test_a_stale_working_order_is_cancelled(tmp_path, monkeypatch):
 
     desk._reconcile_fills()
     assert order.order_id in ex.cancelled
+    # A 204 is the cancel REQUEST being accepted; the order can still fill
+    # while pending_cancel, so it stays on the book until the broker reports
+    # a terminal state.
+    assert order.id in desk.portfolio.pending
+
+    ex.statuses[order.order_id] = {"status": "canceled", "filled_qty": None,
+                                   "filled_avg_price": None, "found": True}
+    desk._reconcile_fills()
     assert order.id not in desk.portfolio.pending
 
 

@@ -267,6 +267,18 @@ class AlpacaClient:
     def submit_mleg_order(self, payload: Dict[str, Any]) -> ApiResult:
         return self._trading("POST", "/v2/orders", json=payload)
 
+    def get_order_by_client_id(self, client_order_id: str) -> ApiResult:
+        """Look an order up by the name the desk gave it.
+
+        The recovery path for a crash inside the submit window: the pending
+        record was persisted with a deterministic client id before the order
+        went out, so the broker can be asked whether the order ever existed
+        even though the broker-assigned id was never learned.
+        """
+        return self._trading(
+            "GET", f"/v2/orders:by_client_order_id?client_order_id={client_order_id}"
+        )
+
     def get_order(self, order_id: str, nested: bool = True) -> ApiResult:
         """One order by id, with its legs.
 

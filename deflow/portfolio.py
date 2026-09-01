@@ -43,6 +43,10 @@ class OpenPosition:
     order_id: str = ""
     simulated: bool = False
     mark_premium: float = 0.0     # current net, same convention
+    # How many closing orders have ever been submitted for this position.
+    # Persisted, so the deterministic client_order_id derived from it never
+    # collides with an order from before a restart.
+    exit_attempts: int = 0
     unrealized_pnl: float = 0.0
     marked_at: str = ""
     # Set when the last mark fell outside the structure's own payoff bounds,
@@ -159,6 +163,7 @@ class OpenPosition:
             "simulated": self.simulated,
             "rolls": self.rolls,
             "mark_premium": self.mark_premium,
+            "exit_attempts": self.exit_attempts,
             "unrealized_pnl": self.unrealized_pnl,
             "marked_at": self.marked_at,
         }
@@ -194,6 +199,7 @@ class OpenPosition:
             simulated=bool(d.get("simulated", False)),
             rolls=int(d.get("rolls", 0)),
             mark_premium=float(d.get("mark_premium", 0.0)),
+            exit_attempts=int(d.get("exit_attempts", 0)),
             unrealized_pnl=float(d.get("unrealized_pnl", 0.0)),
             marked_at=d.get("marked_at", ""),
         )
@@ -328,6 +334,15 @@ class PendingExit:
     simulated: bool = False
     status: str = "new"
     checks: int = 0
+    # Deterministic id written to disk BEFORE the order goes out, so a crash
+    # in the submit window leaves a name the broker can be asked about -- and
+    # a duplicate resubmission with the same id is rejected by Alpaca instead
+    # of doubling the close.
+    client_order_id: str = ""
+    # Consecutive status polls where the broker claimed no such order. One
+    # not-found is indistinguishable from a dropped connection or a 429; only
+    # a streak of them means the order genuinely does not exist.
+    misses: int = 0
 
     def age_seconds(self, now: Optional[datetime] = None) -> float:
         try:
@@ -349,6 +364,8 @@ class PendingExit:
             "simulated": self.simulated,
             "status": self.status,
             "checks": self.checks,
+            "client_order_id": self.client_order_id,
+            "misses": self.misses,
         }
 
     @staticmethod
@@ -362,6 +379,8 @@ class PendingExit:
             simulated=bool(d.get("simulated", False)),
             status=str(d.get("status", "new")),
             checks=int(d.get("checks", 0)),
+            client_order_id=str(d.get("client_order_id", "")),
+            misses=int(d.get("misses", 0)),
         )
 
 
@@ -515,7 +534,7 @@ class Portfolio:
 
     def add_pending_exit(
         self, position_id: str, order_id: str, reason: str,
-        limit_price: float = 0.0, simulated: bool = False,
+        limit_price: float = 0.0, simulated: bool = False, client_order_id: str = "",
     ) -> PendingExit:
         """Record a working CLOSING order. The position is closed only when it fills."""
         exit_order = PendingExit(
@@ -525,6 +544,7 @@ class Portfolio:
             submitted_at=utcnow(),
             limit_price=limit_price,
             simulated=simulated,
+            client_order_id=client_order_id,
         )
         self.pending_exits[position_id] = exit_order
         self.save()
@@ -584,6 +604,10 @@ class Portfolio:
 
     def close(self, position_id: str, reason: str) -> Optional[ClosedPosition]:
         position = self.open.pop(position_id, None)
+        # A close by any path retires the exit-order record with it; a
+        # PendingExit pointing at a popped position would block nothing and
+        # confuse every reconcile that walks it.
+        self.pending_exits.pop(position_id, None)
         if position is None:
             return None
         realized = position.unrealized_pnl
@@ -619,6 +643,13 @@ class Portfolio:
             # would risk both filling -- a doubled exit is a new naked position
             # in the opposite direction.
             if position.id in self.pending_exits:
+                continue
+            # A mark outside the structure's own payoff bounds is bad data by
+            # definition (mark() clamps the P&L and raises this flag). Firing
+            # the stop on it exits a healthy position at a price that never
+            # existed; the quotes refresh next cycle, so deferring never
+            # delays a real stop.
+            if position.mark_suspect:
                 continue
             should_close, reason = self.gate.evaluate_exit(
                 unrealized_pnl=position.unrealized_pnl,

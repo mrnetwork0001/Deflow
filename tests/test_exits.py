@@ -79,10 +79,14 @@ def test_the_concession_still_moves_against_us_on_winners():
     assert result.limit_price == pytest.approx(-8.00 * (1 - SLIPPAGE_BUFFER), abs=0.01)
 
 
-def test_no_mark_falls_back_to_the_entry_price_rather_than_refusing():
+def test_no_mark_falls_back_to_the_entry_price_and_still_concedes():
+    """The first version of this test asserted -4.75*(1+buffer): the entry
+    price with the concession pushed in the desk's favour, an exit priced not
+    to fill. The reviewer caught the sign; the fallback must negate FIRST and
+    concede second."""
     ex = offline_executor()
     result = ex.close(debit_spread(), "exit", mark_premium=None)
-    assert result.limit_price == pytest.approx(-4.75 * (1 + SLIPPAGE_BUFFER), abs=0.01)
+    assert result.limit_price == pytest.approx(-4.75 * (1 - SLIPPAGE_BUFFER), abs=0.01)
 
 
 # -- defect 2: exits book on fill, through a pending-exit ------------------
@@ -149,3 +153,139 @@ def test_pending_exits_survive_a_restart(tmp_path, monkeypatch):
     reborn.load()
     assert pos.id in reborn.pending_exits
     assert reborn.pending_exits[pos.id].order_id == "x-77"
+
+
+# -- the reconciler's retention discipline ---------------------------------
+
+from deflow.desk import TradingDesk
+from deflow.ledger import DecisionLedger
+from deflow.market import SimulatedMarketData
+
+
+class _StatusExecutor(ExecutionAgent):
+    """order_status answers from a script; cancel records and succeeds."""
+
+    def __init__(self, gate, statuses):
+        super().__init__(gate)
+        self.statuses = statuses
+        self.cancelled: list[str] = []
+
+    def order_status(self, order_id):
+        return self.statuses.get(
+            order_id,
+            {"status": "new", "filled_qty": None, "filled_avg_price": None, "found": True},
+        )
+
+    def cancel(self, order_id):
+        self.cancelled.append(order_id)
+        return True
+
+
+def _desk(tmp_path, monkeypatch, statuses):
+    import deflow.ledger as lm
+    import deflow.portfolio as pm
+    monkeypatch.setattr(pm, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(lm, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = pm.Portfolio(gate, 100_000.0)
+    monkeypatch.setattr(pf, "_path", tmp_path / "p.json")
+    return TradingDesk(
+        provider=SimulatedMarketData(), gate=gate, portfolio=pf,
+        executor=_StatusExecutor(gate, statuses),
+        ledger=DecisionLedger(),
+    )
+
+
+def test_one_flaky_status_poll_does_not_drop_a_live_exit(tmp_path, monkeypatch):
+    """A 429 and a 404 arrive in the same shape. Dropping on the first one
+    re-armed exits_due in the SAME cycle -- a second close while the first
+    still rested at the broker."""
+    desk = _desk(tmp_path, monkeypatch, {"x-1": {"status": "unknown", "filled_qty": None,
+                                                "filled_avg_price": None, "found": False}})
+    pos = desk.portfolio.add(debit_spread(), order_id="o-1")
+    desk.portfolio.add_pending_exit(pos.id, "x-1", "stop")
+
+    for expected_kept in (True, True, False):  # third consecutive miss drops
+        desk._reconcile_exits()
+        assert (pos.id in desk.portfolio.pending_exits) is expected_kept
+    assert pos.id in desk.portfolio.open, "the position itself is never silently closed"
+
+
+def test_a_found_response_resets_the_miss_streak(tmp_path, monkeypatch):
+    desk = _desk(tmp_path, monkeypatch, {})
+    pos = desk.portfolio.add(debit_spread(), order_id="o-1")
+    exit_order = desk.portfolio.add_pending_exit(pos.id, "x-1", "stop")
+    exit_order.misses = 2  # one more miss would drop it
+    desk._reconcile_exits()  # default script answers found=True, working
+    assert exit_order.misses == 0
+
+
+def test_cancel_ack_keeps_the_exit_until_the_broker_confirms(tmp_path, monkeypatch):
+    """A 204 accepts the REQUEST; the order can still fill while
+    pending_cancel. The record leaves only on an observed terminal state."""
+    desk = _desk(tmp_path, monkeypatch, {})
+    pos = desk.portfolio.add(debit_spread(), order_id="o-1")
+    exit_order = desk.portfolio.add_pending_exit(pos.id, "x-9", "stop")
+    exit_order.submitted_at = "2020-01-01T00:00:00+00:00"  # long stale
+
+    desk._reconcile_exits()
+    assert "x-9" in desk.executor.cancelled
+    assert pos.id in desk.portfolio.pending_exits, "kept until terminal state"
+
+    # The racing fill lands anyway: it must be BOOKED, not lost.
+    desk.executor.statuses["x-9"] = {"status": "filled", "filled_qty": 1,
+                                     "filled_avg_price": -3.10, "found": True}
+    desk._reconcile_exits()
+    assert pos.id not in desk.portfolio.open
+    assert desk.portfolio.closed[-1].realized_pnl == pytest.approx((3.10 - 4.75) * 100)
+
+
+def test_a_partially_filled_exit_is_never_stale_cancelled(tmp_path, monkeypatch):
+    desk = _desk(tmp_path, monkeypatch, {"x-2": {"status": "partially_filled", "filled_qty": 1,
+                                                 "filled_avg_price": None, "found": True}})
+    pos = desk.portfolio.add(debit_spread(contracts=2), order_id="o-1")
+    exit_order = desk.portfolio.add_pending_exit(pos.id, "x-2", "stop")
+    exit_order.submitted_at = "2020-01-01T00:00:00+00:00"
+    desk._reconcile_exits()
+    assert desk.executor.cancelled == [], "the remainder is doing exactly what the desk wants"
+    assert pos.id in desk.portfolio.pending_exits
+
+
+def test_a_partial_fill_on_a_dead_order_freezes_the_position(tmp_path, monkeypatch):
+    """One of two contracts traded, then the order expired. A fresh full-size
+    close would exit contracts that no longer exist -- frozen for a human."""
+    desk = _desk(tmp_path, monkeypatch, {"x-3": {"status": "expired", "filled_qty": 1,
+                                                 "filled_avg_price": -3.0, "found": True}})
+    pos = desk.portfolio.add(debit_spread(contracts=2), order_id="o-1")
+    desk.portfolio.add_pending_exit(pos.id, "x-3", "stop")
+    desk._reconcile_exits()
+    kept = desk.portfolio.pending_exits.get(pos.id)
+    assert kept is not None and kept.status == "partial_terminal"
+    assert desk.portfolio.exits_due() == [], "frozen: no automated resubmission"
+
+
+# -- executor guards -------------------------------------------------------
+
+def test_an_empty_order_id_is_not_a_fill():
+    ex = offline_executor()
+    state = ex.order_status("")
+    assert state["found"] is False and state["status"] != "filled"
+
+
+def test_dry_run_close_never_submits():
+    ex = ExecutionAgent(DeterministicRiskGate(100_000.0), dry_run=True)
+    result = ex.close(debit_spread(), "exit", mark_premium=3.0)
+    assert result.submitted is False and result.dry_run is True
+
+
+def test_a_suspect_mark_does_not_fire_the_exit_guard(tmp_path, monkeypatch):
+    """mark() clamps the P&L and raises mark_suspect precisely because the
+    quote data cannot be trusted; firing the stop on it exits a healthy
+    position at a price that never existed."""
+    desk = _desk(tmp_path, monkeypatch, {})
+    pos = desk.portfolio.add(debit_spread(), order_id="o-1")
+    pos.unrealized_pnl = -pos.max_loss  # clamped floor: the stop would fire
+    pos.mark_suspect = True
+    assert desk.portfolio.exits_due() == []
+    pos.mark_suspect = False
+    assert desk.portfolio.exits_due() != []

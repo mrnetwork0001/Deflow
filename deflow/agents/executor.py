@@ -341,9 +341,17 @@ class ExecutionAgent:
         ever meant the broker accepted the request; whether a position exists
         is a separate question that has to be asked.
         """
-        if not order_id or order_id.startswith("sim-"):
+        if order_id.startswith("sim-"):
             # A locally simulated fill is, by construction, filled.
             return {"status": "filled", "filled_qty": None, "filled_avg_price": None, "found": True}
+        if not order_id:
+            # An empty id used to fall into the simulated branch and report
+            # "filled" -- which meant a CLI stdout parse quirk (ok=True, data
+            # not a dict, id lost) booked a close at the last mid-mark while
+            # the real order rested live and unpollable at the broker. An
+            # order the desk cannot name is an order whose state it does not
+            # know.
+            return {"status": "unknown", "filled_qty": None, "filled_avg_price": None, "found": False}
 
         data: Optional[Dict[str, Any]] = None
         if self.cli and self.cli.available and self.cli.settings.has_alpaca_credentials:
@@ -384,7 +392,11 @@ class ExecutionAgent:
     # -- exits --------------------------------------------------------------
 
     def close(
-        self, proposal: SpreadProposal, reason: str, mark_premium: Optional[float] = None
+        self,
+        proposal: SpreadProposal,
+        reason: str,
+        mark_premium: Optional[float] = None,
+        client_order_id: Optional[str] = None,
     ) -> ExecutionResult:
         """Close an open structure. Exits are never gated -- the risk gate
         exists to stop new risk, not to trap the desk in an existing position.
@@ -402,14 +414,31 @@ class ExecutionAgent:
         if mark_premium is not None and math.isfinite(mark_premium):
             limit_price = self._buffered(-mark_premium)
         else:
-            # No usable mark. The entry-derived limit is wrong for any position
-            # that has moved, but an exit attempt beats refusing to try.
+            # No usable mark. The entry price is wrong for any position that
+            # has moved, but an exit attempt beats refusing to try. Negate
+            # FIRST, then concede: -limit_price_for() negated after buffering,
+            # which pushed the 3% in the desk's favour and produced an exit
+            # priced not to fill -- the very defect this parameter fixed,
+            # reintroduced in its own fallback.
             log.warning(
                 "Closing %s without a current mark; falling back to the entry-derived limit",
                 proposal.symbol,
             )
-            limit_price = -self.limit_price_for(proposal)
-        client_order_id = f"deflow-x-{uuid.uuid4().hex[:22]}"
+            limit_price = self._buffered(-proposal.net_premium)
+        if client_order_id is None:
+            client_order_id = f"deflow-x-{uuid.uuid4().hex[:22]}"
+
+        if self.dry_run:
+            # Every ENTRY route already refuses to submit under dry-run; the
+            # REST close branch did not, so a rehearsal run could park a real,
+            # untracked closing order on the live account. No route submits a
+            # close in dry-run, uniformly.
+            return ExecutionResult(
+                submitted=False, dry_run=True, route=self.resolve_route(),
+                proposal_id=proposal.proposal_id, symbol=proposal.symbol,
+                strategy=proposal.strategy.value, contracts=proposal.contracts,
+                limit_price=limit_price, client_order_id=client_order_id,
+            )
         base = dict(
             route=self.resolve_route(),
             proposal_id=proposal.proposal_id,
