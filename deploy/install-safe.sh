@@ -100,6 +100,12 @@ fi
 
 # ---------------------------------------------------------------------------
 say "Fetching the application into $APP_DIR"
+# useradd made this directory deflow-owned, but git runs here as root and
+# refuses a repository owned by someone else. Rather than depend on
+# safe.directory being honoured, take ownership for the duration of the
+# install; the chown back to deflow at the end restores it.
+chown -R root:root "$APP_DIR" 2>/dev/null || true
+
 if [[ -d "$APP_DIR/.git" ]]; then
   "${GIT[@]}" -C "$APP_DIR" fetch --quiet origin main
   "${GIT[@]}" -C "$APP_DIR" reset --hard --quiet origin/main
