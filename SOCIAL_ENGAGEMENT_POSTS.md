@@ -1,5 +1,23 @@
 # Deflow — Build-in-Public Posts
 
+## Submission tracker
+
+Up to 5 links go with the final submission.
+
+| # | Day | Status | Link |
+|---|-----|--------|------|
+| 1 | Tue 1 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2094702482274312352 |
+| 2 | Wed 2 Sep | — | _the volatility-estimator bug_ |
+| 3 | Wed 2 Sep | — | _the silent liquidity filter_ |
+| 4 | Thu 3 Sep | — | _results, generated from the ledger_ |
+| 5 | Fri 4 Sep | — | _ship + reveal_ |
+
+**Reveal schedule.** Post 1 named neither the project nor the strategy — deliberately, with 40+
+teams competing. The name, the architecture and the variance-premium thesis go public on **Day 3**,
+once there are trades on the tape to point at. Posts 2–5 below assume that.
+
+---
+
 For the lablab.ai × Alpaca social engagement prize. Tag **@lablabai** and **@AlpacaHQ** on X, and
 **lablab.ai** and **Alpaca** on LinkedIn.
 
