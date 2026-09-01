@@ -13,6 +13,11 @@ Description=Deflow — autonomous multi-agent options desk
 Documentation=https://github.com/mrnetwork0001/Deflow
 After=network-online.target
 Wants=network-online.target
+# Belongs in [Unit], not [Service]. systemd logged
+# "Unknown key name 'StartLimitIntervalSec' in section 'Service', ignoring."
+# and silently dropped it, leaving the default rate limit in place -- so a
+# crash loop would have stopped restarting after five attempts.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -26,6 +31,10 @@ EnvironmentFile=/opt/deflow/.env
 Environment=DEFLOW_HOST=127.0.0.1
 Environment=DEFLOW_PORT=8000
 Environment=DEFLOW_NO_BOOTSTRAP=1
+# Without this, Python block-buffers stdout when it is a pipe rather than a
+# terminal, so journalctl showed the service starting and then nothing at all.
+# A trading desk you cannot watch is not deployed, it is merely running.
+Environment=PYTHONUNBUFFERED=1
 Environment=PATH=/opt/deflow/.venv/bin:/usr/local/bin:/usr/bin:/bin
 
 ExecStart=/opt/deflow/.venv/bin/python /opt/deflow/main.py
@@ -33,8 +42,8 @@ ExecStart=/opt/deflow/.venv/bin/python /opt/deflow/main.py
 Restart=always
 RestartSec=10
 # Never give up restarting: an options position left unmanaged over a weekend
-# is worse than a noisy restart loop.
-StartLimitIntervalSec=0
+# is worse than a noisy restart loop. (StartLimitIntervalSec=0 is set in
+# [Unit] above, which is the only section systemd accepts it in.)
 
 StandardOutput=journal
 StandardError=journal

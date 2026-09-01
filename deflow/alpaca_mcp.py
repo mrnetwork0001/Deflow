@@ -115,10 +115,17 @@ class AlpacaMCPClient:
                 command,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
                 env=env,
+                # Run from the application directory, not whatever directory the
+                # caller happened to be in. alpaca-mcp-server reads settings
+                # through pydantic-settings, which resolves `.env` RELATIVE to
+                # the working directory -- so launching `--check` from /root as
+                # the service user made it try to read /root/.env and die with
+                # a bare PermissionError before emitting a single byte.
+                cwd=str(ROOT),
             )
         except OSError as exc:
             return McpResult(False, error=f"could not launch MCP server: {exc}")
@@ -132,8 +139,18 @@ class AlpacaMCPClient:
             },
         )
         if not init.ok:
+            # A server that dies on import says why on stderr. Reporting only
+            # "closed the connection" turns a one-line diagnosis into a hunt.
+            detail = ""
+            if self.proc is not None and self.proc.stderr is not None:
+                try:
+                    self.proc.stderr.flush()
+                    detail = (self.proc.stderr.read() or "").strip().splitlines()[-1:] or [""]
+                    detail = detail[0][:200]
+                except Exception:
+                    detail = ""
             self.stop()
-            return init
+            return McpResult(False, error=f"{init.error}{' — ' + detail if detail else ''}")
         self.server_info = (init.data or {}).get("serverInfo", {})
         self._notify("notifications/initialized")
 

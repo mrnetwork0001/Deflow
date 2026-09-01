@@ -22,6 +22,24 @@ echo "==> Dependencies"
 chown -R deflow:deflow "$APP_DIR"
 chmod 600 "$APP_DIR/.env"
 
+# Refresh the unit if it changed upstream, preserving the installed port.
+# Without this a fix to the service file ships in the repo and never reaches
+# systemd, so the deployment silently keeps running the old definition.
+echo "==> Service unit"
+PORT_NOW=$(grep -E '^DEFLOW_PORT=' "$APP_DIR/.env" | tail -1 | cut -d= -f2 | tr -d ' "')
+PORT_NOW="${PORT_NOW:-8000}"
+sed -e "s#^Environment=DEFLOW_PORT=.*#Environment=DEFLOW_PORT=${PORT_NOW}#" \
+    -e "s#^Environment=PATH=.*#Environment=PATH=${APP_DIR}/bin:${APP_DIR}/.venv/bin:/usr/local/bin:/usr/bin:/bin#" \
+    "$APP_DIR/deploy/deflow.service" > /tmp/deflow.service.new
+if ! cmp -s /tmp/deflow.service.new /etc/systemd/system/deflow.service; then
+  cp /tmp/deflow.service.new /etc/systemd/system/deflow.service
+  systemctl daemon-reload
+  echo "    unit updated and reloaded"
+else
+  echo "    unchanged"
+fi
+rm -f /tmp/deflow.service.new
+
 echo "==> Restarting"
 systemctl restart deflow
 sleep 4
