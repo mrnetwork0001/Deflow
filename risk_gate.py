@@ -39,6 +39,7 @@ __all__ = [
     "MAX_PORTFOLIO_RISK_PCT",
     "MAX_DELTA_EXPOSURE",
     "MIN_PROBABILITY_OF_PROFIT",
+    "MIN_PROBABILITY_OF_PROFIT_DEBIT",
     "benchmark",
 ]
 
@@ -51,7 +52,9 @@ MAX_AGGREGATE_RISK_PCT = 0.06        # Breaker 5: total capital at risk across a
 MAX_SYMBOL_RISK_PCT = 0.03           # Breaker 6: concentration cap per underlying
 MAX_DELTA_EXPOSURE = 0.35            # Breaker 3: |net delta| per contract-equivalent
 MAX_PORTFOLIO_NET_DELTA = 1.20       # Breaker 7: |summed portfolio delta| in contract-equivalents
-MIN_PROBABILITY_OF_PROFIT = 0.65     # Breaker 4: minimum risk-neutral P(profit)
+MIN_PROBABILITY_OF_PROFIT = 0.65     # Breaker 4: minimum P(profit) for CREDIT structures
+MIN_PROBABILITY_OF_PROFIT_DEBIT = 0.30  # Breaker 4: floor for DEBIT structures, which
+                                     # are judged on expectancy instead (see below)
 MAX_OPEN_POSITIONS = 6               # Breaker 8
 MIN_DTE = 7                          # Breaker 9: gamma risk explodes inside a week
 MAX_DTE = 60                         # Breaker 9: capital efficiency / theta decay window
@@ -93,6 +96,10 @@ _F_STRUCT_BAD = (
 _F_MAXLOSS = "Defined max loss ${0:,.2f} vs ${1:,.2f} cap ({2:.0%} of ${3:,.2f})"
 _F_DELTA = "|net delta| {0:.3f} vs {1} bound"
 _F_POP = "P(profit) {0:.1%} vs {1:.0%} floor"
+_F_POP_DEBIT = (
+    "P(profit) {0:.1%} (floor {1:.0%}) with expectancy ${2:,.2f} "
+    "= {0:.1%}x${3:,.0f} - {4:.1%}x${5:,.0f}"
+)
 _F_AGGREGATE = "Book risk after fill ${0:,.2f} vs ${1:,.2f} cap"
 _F_SYMBOL = "{0} risk after fill ${1:,.2f} vs ${2:,.2f} cap"
 _F_BOOK_DELTA = "Book |delta| after fill {0:.3f} vs {1} bound"
@@ -352,10 +359,35 @@ class DeterministicRiskGate:
         b3 = (3, "trade_delta_bound", net_delta <= MAX_DELTA_EXPOSURE, _F_DELTA,
               (net_delta, MAX_DELTA_EXPOSURE), net_delta, MAX_DELTA_EXPOSURE)
 
-        # --- Breaker 4: probability of profit ------------------------------
+        # --- Breaker 4: probability of profit / expectancy -----------------
+        # A win rate is the right question for a credit structure, which is
+        # built to be right most of the time and occasionally very wrong. It is
+        # the wrong question for a debit spread: a 60-delta call spread wins
+        # roughly 45% of the time *by construction*, and holding it to a 65%
+        # floor makes every directional structure unbuildable -- the desk
+        # builds them, then vetoes 100% of them, and trades nothing whenever
+        # implied vol is cheap.
+        #
+        # So debit structures are judged on the break-even condition itself,
+        # which is strictly the correct test rather than a looser one:
+        #
+        #     P(win) x max_profit  >  P(lose) x max_loss
+        #
+        # plus a floor that still refuses lottery tickets. Breaker 10's
+        # reward:risk requirement and the auditor's Monte Carlo expectancy
+        # check both remain in force on top of this.
         pop = _read(get, "probability_of_profit", 0.0)
-        b4 = (4, "probability_of_profit", pop >= MIN_PROBABILITY_OF_PROFIT, _F_POP,
-              (pop, MIN_PROBABILITY_OF_PROFIT), pop, MIN_PROBABILITY_OF_PROFIT)
+        max_profit = _read(get, "max_profit", 0.0)
+        if strategy in _CREDIT_STRATEGIES:
+            b4 = (4, "probability_of_profit", pop >= MIN_PROBABILITY_OF_PROFIT, _F_POP,
+                  (pop, MIN_PROBABILITY_OF_PROFIT), pop, MIN_PROBABILITY_OF_PROFIT)
+        else:
+            expectancy = pop * max_profit - (1.0 - pop) * max_loss
+            b4 = (4, "probability_of_profit",
+                  pop >= MIN_PROBABILITY_OF_PROFIT_DEBIT and expectancy > 0.0,
+                  _F_POP_DEBIT,
+                  (pop, MIN_PROBABILITY_OF_PROFIT_DEBIT, expectancy, max_profit, 1.0 - pop, max_loss),
+                  pop, MIN_PROBABILITY_OF_PROFIT_DEBIT)
 
         # --- Breaker 5: aggregate portfolio risk ---------------------------
         aggregate_limit = equity * MAX_AGGREGATE_RISK_PCT
@@ -387,7 +419,6 @@ class DeterministicRiskGate:
               (dte, MIN_DTE, MAX_DTE), dte, _MAX_DTE_F)
 
         # --- Breaker 10: payoff quality ------------------------------------
-        max_profit = _read(get, "max_profit", 0.0)
         if strategy in _CREDIT_STRATEGIES:
             width = max_profit + max_loss  # credit + (width - credit) == width
             ratio = max_profit / width if width > 0 else 0.0
