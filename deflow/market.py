@@ -288,6 +288,29 @@ class AlpacaMarketData:
         self._chain_cache[cache_key] = (datetime.now(timezone.utc), quotes)
         return quotes
 
+    def is_market_open(self) -> tuple[bool, str]:
+        """Ask Alpaca whether the session is open, cached for 30 seconds.
+
+        Fails OPEN deliberately: if the clock endpoint is unreachable the desk
+        keeps trading rather than sitting out a live session on a transient
+        network error. A rejected order is a logged non-event; a missed session
+        is P&L that cannot be recovered.
+        """
+        cached = self._chain_cache.get("clock")
+        if cached and (datetime.now(timezone.utc) - cached[0]).total_seconds() < 30:
+            return cached[1]
+
+        result = self.client.get_clock()
+        if not result.ok:
+            log.warning("Market clock unavailable (%s); assuming open", result.error)
+            return True, "clock unavailable — assuming open"
+
+        data = result.data or {}
+        state = (bool(data.get("is_open")), str(data.get("next_open", "")))
+        verdict = (state[0], "" if state[0] else f"closed until {state[1]}")
+        self._chain_cache["clock"] = (datetime.now(timezone.utc), verdict)
+        return verdict
+
     def spot(self, symbol: str) -> float:
         trade = self.client.get_latest_stock_trade(symbol)
         if trade.ok:
@@ -412,6 +435,10 @@ class SimulatedMarketData:
         scale = spec.spot / closes[-1]
         self._paths[symbol] = [c * scale for c in closes]
         return self._paths[symbol]
+
+    def is_market_open(self) -> tuple[bool, str]:
+        """The synthetic market never closes -- there is no session to miss."""
+        return True, ""
 
     def spot(self, symbol: str) -> float:
         return self._path(symbol)[-1]

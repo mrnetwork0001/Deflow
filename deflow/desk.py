@@ -153,6 +153,22 @@ class TradingDesk:
         self._emit("cycle_start", {"cycle_id": report.cycle_id, "mode": report.mode,
                                    "universe": self.settings.universe})
 
+        # Do nothing while the session is closed. Outside market hours the
+        # option chain still returns quotes -- yesterday's, wide and stale --
+        # so the desk would happily construct spreads from prices nobody can
+        # trade at and fire multi-leg orders that the broker rejects. Those
+        # rejections are harmless to the balance and corrosive to the record:
+        # they fill the account's order history with noise that anyone
+        # reviewing its performance has to wade through.
+        is_open, why = self._market_state()
+        if not is_open:
+            report.finished_at = utcnow()
+            report.performance = self.portfolio.performance()
+            self.last_report = report
+            self._emit("market_closed", {"cycle_id": report.cycle_id, "detail": why})
+            log.info("Market closed (%s); skipping cycle", why)
+            return report
+
         # --- 0. Manage what is already open --------------------------------
         try:
             report.exits = self._manage_open_positions()
@@ -184,6 +200,17 @@ class TradingDesk:
             },
         )
         return report
+
+    def _market_state(self) -> tuple[bool, str]:
+        """Session state, tolerating a provider that cannot report one."""
+        checker = getattr(self.provider, "is_market_open", None)
+        if checker is None:
+            return True, ""
+        try:
+            return checker()
+        except Exception as exc:
+            log.warning("Market clock check failed (%s); assuming open", exc)
+            return True, "clock check failed — assuming open"
 
     # -- per-symbol pipeline -------------------------------------------------
 
@@ -354,8 +381,11 @@ class TradingDesk:
 
     def status(self) -> Dict[str, Any]:
         chain = self.ledger.verify()
+        is_open, why = self._market_state()
         return {
             "mode": self.settings.mode,
+            "market_open": is_open,
+            "market_detail": why,
             "simulated_market_data": getattr(self.provider, "simulated", True),
             "universe": self.settings.universe,
             "cycles_run": self.cycles,

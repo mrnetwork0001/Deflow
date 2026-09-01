@@ -738,3 +738,85 @@ def test_ledger_survives_concurrent_writers(tmp_path, monkeypatch):
     status = ledger_module.DecisionLedger("concurrent.jsonl").verify()
     assert status.valid, status.detail
     assert status.entries == 120, f"expected 120 appends, chain has {status.entries}"
+
+
+# --------------------------------------------------------------------------
+# Market hours
+# --------------------------------------------------------------------------
+
+def test_cycle_is_skipped_while_the_session_is_closed(tmp_path, monkeypatch):
+    """Outside market hours the chain still returns yesterday's quotes.
+
+    Trading on them would build spreads at prices nobody can transact at and
+    fire multi-leg orders the broker rejects — filling the judged account's
+    order history with noise.
+    """
+    import deflow.ledger as ledger_module
+    import deflow.portfolio as portfolio_module
+
+    for module in (ledger_module, portfolio_module):
+        monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+
+    provider = SimulatedMarketData()
+    provider.is_market_open = lambda: (False, "closed until 09:30 ET")
+
+    gate = DeterministicRiskGate(100_000.0)
+    portfolio = Portfolio(gate, 100_000.0)
+    desk = TradingDesk(
+        provider=provider, gate=gate, portfolio=portfolio,
+        executor=ExecutionAgent(gate, preferred_route="paper"),
+        ledger=ledger_module.DecisionLedger("closed.jsonl"),
+        settings=Settings(),
+    )
+    report = desk.run_cycle()
+
+    assert report.outcomes == [], "no symbol should be processed with the market shut"
+    assert report.orders_submitted == 0
+    assert not portfolio.open
+    events = {r["event"] for r in desk.ledger.read()}
+    assert "market_closed" in events, "the skip must be recorded, not silent"
+
+
+def test_cycle_runs_when_the_session_is_open(tmp_path, monkeypatch):
+    import deflow.ledger as ledger_module
+    import deflow.portfolio as portfolio_module
+
+    for module in (ledger_module, portfolio_module):
+        monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+
+    provider = SimulatedMarketData()
+    provider.is_market_open = lambda: (True, "")
+
+    gate = DeterministicRiskGate(100_000.0)
+    desk = TradingDesk(
+        provider=provider, gate=gate, portfolio=Portfolio(gate, 100_000.0),
+        executor=ExecutionAgent(gate, preferred_route="paper"),
+        ledger=ledger_module.DecisionLedger("open.jsonl"),
+        settings=Settings(),
+    )
+    assert len(desk.run_cycle().outcomes) == len(Settings().universe)
+
+
+def test_unreachable_clock_fails_open(tmp_path, monkeypatch):
+    """A transient network error must not cost a whole live session."""
+    import deflow.ledger as ledger_module
+    import deflow.portfolio as portfolio_module
+
+    for module in (ledger_module, portfolio_module):
+        monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+
+    provider = SimulatedMarketData()
+
+    def boom():
+        raise RuntimeError("connection reset")
+
+    provider.is_market_open = boom
+
+    gate = DeterministicRiskGate(100_000.0)
+    desk = TradingDesk(
+        provider=provider, gate=gate, portfolio=Portfolio(gate, 100_000.0),
+        executor=ExecutionAgent(gate, preferred_route="paper"),
+        ledger=ledger_module.DecisionLedger("boom.jsonl"),
+        settings=Settings(),
+    )
+    assert desk.run_cycle().outcomes, "an unreachable clock must not halt trading"
