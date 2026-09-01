@@ -1214,3 +1214,110 @@ def test_event_widens_the_simulated_tail():
     shocked = stress_test(p, paths=3000, jump_intensity=6.0, jump_mean=-0.08, jump_stdev=0.10)
     assert shocked.cvar_05 <= calm.cvar_05, "an event must not look safer than calm markets"
     assert shocked.prob_max_loss >= calm.prob_max_loss
+
+
+# --------------------------------------------------------------------------
+# Position defence: rolling and time-scaled targets
+# --------------------------------------------------------------------------
+
+def test_profit_target_tightens_toward_expiry():
+    """The last quarter of a credit spread's profit is the slowest and most
+    dangerous to collect."""
+    from deflow.rolls import profit_target
+
+    assert profit_target(45) == pytest.approx(0.75)
+    assert profit_target(7) == pytest.approx(0.40)
+    for a, b in zip(range(7, 40), range(8, 41)):
+        assert profit_target(a) <= profit_target(b) + 1e-9, "target must not rise as expiry nears"
+
+
+def test_time_scaled_target_closes_a_winner_the_fixed_target_would_hold(gate):
+    pf = Portfolio(gate, 100_000.0)
+    p = _spread(contracts=4)
+    p.proposal_id = "p1"
+    pos = pf.add(p)
+    # 55% of max profit: below the gate's fixed 75%, above the near-expiry 40%.
+    pos.unrealized_pnl = p.max_profit * 0.55
+    object.__setattr__(p.legs[0], "expiry", date.today() + timedelta(days=8))
+    object.__setattr__(p.legs[1], "expiry", date.today() + timedelta(days=8))
+
+    due = pf.exits_due()
+    assert due, "a winner near expiry should be taken"
+    assert "time-scaled" in due[0][1]
+
+
+def test_debit_spreads_are_never_rolled():
+    """There is no credit to collect, so extending one is paying twice for the
+    same view."""
+    from deflow.rolls import should_consider
+
+    p = SpreadProposal("SPY", Strategy.BULL_CALL_SPREAD,
+                       [leg("call", 450, +1, 9.10), leg("call", 460, -1, 4.35)],
+                       contracts=2, underlying_price=452.0)
+    assert should_consider(p, 452.0, -500.0, 0) is None
+
+
+def test_untested_position_is_not_rolled():
+    from deflow.rolls import should_consider
+
+    p = _spread(contracts=4)
+    object.__setattr__(p.legs[0], "expiry", date.today() + timedelta(days=8))
+    object.__setattr__(p.legs[1], "expiry", date.today() + timedelta(days=8))
+    # Spot far above the short put — nothing is tested.
+    assert should_consider(p, 700.0, -100.0, 0) is None
+
+
+def test_a_tested_losing_position_near_expiry_is_a_candidate():
+    from deflow.rolls import should_consider
+
+    p = _spread(contracts=4)
+    for lg in p.legs:
+        object.__setattr__(lg, "expiry", date.today() + timedelta(days=8))
+    assert should_consider(p, 529.0, -400.0, 0) is not None
+
+
+def test_a_position_cannot_be_rolled_forever():
+    from deflow.rolls import MAX_ROLLS, should_consider
+
+    p = _spread(contracts=4)
+    for lg in p.legs:
+        object.__setattr__(lg, "expiry", date.today() + timedelta(days=8))
+    assert should_consider(p, 529.0, -400.0, MAX_ROLLS) is None
+
+
+def test_a_winning_position_is_closed_not_rolled():
+    from deflow.rolls import should_consider
+
+    p = _spread(contracts=4)
+    for lg in p.legs:
+        object.__setattr__(lg, "expiry", date.today() + timedelta(days=8))
+    assert should_consider(p, 529.0, +200.0, 0) is None
+
+
+def test_a_roll_that_does_not_pay_is_refused():
+    """Rolling for a debit is paying to stay in a losing trade."""
+    from deflow import rolls
+    from deflow.models import OptionQuote, occ_symbol
+
+    p = _spread(contracts=4)
+    for lg in p.legs:
+        object.__setattr__(lg, "expiry", date.today() + timedelta(days=8))
+
+    chain = []
+    # Current legs expensive to close; the later expiry offers almost nothing.
+    for lg in p.legs:
+        chain.append(OptionQuote(lg.symbol, 8.0, 8.2, 529.0, lg.strike, lg.right,
+                                 lg.expiry, 0.2, 500, 50))
+    far = date.today() + timedelta(days=40)
+    for lg in p.legs:
+        chain.append(OptionQuote(occ_symbol("SPY", far, lg.right, lg.strike), 0.05, 0.10,
+                                 529.0, lg.strike, lg.right, far, 0.2, 500, 50))
+
+    assert rolls.build(p, chain, 529.0, "tested") is None
+
+
+def test_rolling_is_disabled_by_default():
+    """New logic in the exit path ships off until fills are known good."""
+    import deflow.desk as desk_module
+
+    assert desk_module.ROLL_ENABLED is False

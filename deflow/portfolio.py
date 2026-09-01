@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from risk_gate import DeterministicRiskGate, PortfolioState
 
+from . import rolls
 from .config import DATA_DIR
 from .greeks import black_scholes, years_to_expiry
 from .models import (
@@ -47,6 +48,10 @@ class OpenPosition:
     # Set when the last mark fell outside the structure's own payoff bounds,
     # i.e. the quote data behind it could not be trusted.
     mark_suspect: bool = False
+    # How many times this structure has been rolled out. Capped, because a
+    # position rolled indefinitely is a losing view being refused rather than
+    # a trade being managed.
+    rolls: int = 0
 
     @property
     def id(self) -> str:
@@ -152,6 +157,7 @@ class OpenPosition:
             "entry_at": self.entry_at,
             "order_id": self.order_id,
             "simulated": self.simulated,
+            "rolls": self.rolls,
             "mark_premium": self.mark_premium,
             "unrealized_pnl": self.unrealized_pnl,
             "marked_at": self.marked_at,
@@ -186,6 +192,7 @@ class OpenPosition:
             entry_at=d.get("entry_at", ""),
             order_id=d.get("order_id", ""),
             simulated=bool(d.get("simulated", False)),
+            rolls=int(d.get("rolls", 0)),
             mark_premium=float(d.get("mark_premium", 0.0)),
             unrealized_pnl=float(d.get("unrealized_pnl", 0.0)),
             marked_at=d.get("marked_at", ""),
@@ -204,6 +211,7 @@ class OpenPosition:
                 "entry_at": self.entry_at,
                 "marked_at": self.marked_at,
                 "mark_suspect": self.mark_suspect,
+                "rolls": self.rolls,
                 "order_id": self.order_id,
                 "simulated": self.simulated,
             }
@@ -485,7 +493,14 @@ class Portfolio:
             position.mark(by_symbol, spots.get(position.symbol, 0.0))
 
     def exits_due(self) -> List[tuple[OpenPosition, str]]:
-        """Positions the deterministic exit guard says to close now."""
+        """Positions the deterministic exit guard says to close now.
+
+        The gate's fixed 75% profit target still applies as the outer bound,
+        but a time-scaled target closes winners earlier as expiry approaches.
+        The last quarter of a credit spread's profit arrives only as the short
+        decays to nothing, which is precisely when gamma is largest -- holding
+        for it risks the most to earn the least.
+        """
         due = []
         for position in self.open.values():
             should_close, reason = self.gate.evaluate_exit(
@@ -494,6 +509,14 @@ class Portfolio:
                 max_profit=position.max_profit,
                 dte=position.dte,
             )
+            if not should_close and position.max_profit > 0:
+                target = rolls.profit_target(position.dte)
+                if position.unrealized_pnl >= target * position.max_profit:
+                    should_close = True
+                    reason = (
+                        f"PROFIT TARGET (time-scaled): ${position.unrealized_pnl:,.2f} reached "
+                        f"{target:.0%} of ${position.max_profit:,.2f} at {position.dte} DTE."
+                    )
             if should_close:
                 due.append((position, reason))
         return due

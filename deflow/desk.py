@@ -17,6 +17,7 @@ Every step writes to the hash-chained ledger, including the steps that decide
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
@@ -26,6 +27,7 @@ from risk_gate import DeterministicRiskGate
 from .agents.analyst import MacroVolatilityAnalyst
 from .agents.auditor import AdversarialRiskAuditor
 from .agents.executor import ExecutionAgent
+from . import rolls
 from .agents.structurer import (
     MAX_SPREAD_PCT,
     MIN_OPEN_INTEREST,
@@ -39,10 +41,21 @@ from .portfolio import Portfolio
 
 log = logging.getLogger("deflow.desk")
 
+
+def _bool_env(name: str, default: bool) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    return raw in {"1", "true", "yes", "on"} if raw else default
+
 # How long a limit order may rest before the desk withdraws it. A limit
 # priced off a twenty-minute-old quote is no longer the trade the gate
 # approved, and it reserves risk budget while it waits.
 STALE_ORDER_SECONDS = 900
+
+# Rolling is off until the desk has traded a clean session. New logic in
+# the exit path is the most expensive place to be wrong, and a roll that
+# closes without reopening is a position silently abandoned. Enable with
+# DEFLOW_ROLL_ENABLED=true once fills are known good.
+ROLL_ENABLED = _bool_env("DEFLOW_ROLL_ENABLED", False)
 
 
 @dataclass
@@ -132,6 +145,8 @@ class TradingDesk:
         self.cycles = 0
         self.last_report: Optional[CycleReport] = None
         self._subscribers: List[Callable[[Dict[str, Any]], None]] = []
+        # proposal_id -> roll count, applied when the order fills.
+        self._rolls_carried: Dict[str, int] = {}
 
     # -- event fan-out -------------------------------------------------------
 
@@ -408,6 +423,8 @@ class TradingDesk:
                 # Alpaca reports a multi-leg fill as the net package price, in
                 # the same sign convention the order used.
                 position = self.portfolio.confirm_fill(order.id, filled)
+                if position is not None and order.id in self._rolls_carried:
+                    position.rolls = self._rolls_carried.pop(order.id)
                 record["outcome"] = "filled"
                 record["filled_price"] = filled
                 if position is not None:
@@ -453,8 +470,16 @@ class TradingDesk:
                 spots[symbol] = chain[0].underlying_price
         self.portfolio.mark_all(quotes, spots)
 
+        # Defend before exiting. A tested short near expiry may be worth
+        # rolling out for a credit instead of realising the loss -- but only if
+        # the roll pays, does not widen the risk, and clears the same gate any
+        # new trade would.
+        rolled_ids = self._defend(quotes, spots)
+
         exits = []
         for position, reason in self.portfolio.exits_due():
+            if position.id in rolled_ids:
+                continue
             result = self.executor.close(position.proposal, reason)
             record = {
                 "position_id": position.id,
@@ -472,6 +497,74 @@ class TradingDesk:
             self._emit("exit", record)
             exits.append(record)
         return exits
+
+    def _defend(
+        self, quotes: List[Any], spots: Dict[str, float]
+    ) -> set:
+        """Roll tested positions out in time, where doing so genuinely helps.
+
+        Executed as close-then-open rather than one atomic multi-expiry order.
+        If the close fills and the open does not, the desk is flat -- which is
+        a safe place to be. The reverse ordering could leave it holding both
+        structures at once, which is not.
+        """
+        if not ROLL_ENABLED or not self.portfolio.open:
+            return set()
+
+        rolled: set = set()
+        by_symbol: Dict[str, List[Any]] = {}
+        for q in quotes:
+            by_symbol.setdefault(q.symbol[:6].rstrip("0123456789"), []).append(q)
+
+        for position in list(self.portfolio.open.values()):
+            spot = spots.get(position.symbol, position.proposal.underlying_price)
+            why = rolls.should_consider(
+                position.proposal, spot, position.unrealized_pnl, position.rolls
+            )
+            if why is None:
+                continue
+
+            chain = self.provider.option_chain(position.symbol, 7, 75)
+            plan = rolls.build(position.proposal, chain, spot, why)
+            if plan is None:
+                continue
+
+            # A roll opens new risk, so it faces the same twelve breakers as
+            # any other trade. There is no privileged path to the broker.
+            state = self.portfolio.state()
+            verdict = self.gate.evaluate_trade(plan.proposal.to_risk_payload(), state)
+            record = {**plan.to_dict(), "approved": verdict.approved, "reason": verdict.reason}
+            if not verdict.approved:
+                self._emit("roll_rejected", record)
+                continue
+
+            close = self.executor.close(position.proposal, f"rolling: {why}")
+            if not close.submitted:
+                record["error"] = f"close failed: {close.error}"
+                self._emit("roll_rejected", record)
+                continue
+
+            closed = self.portfolio.close(position.id, f"rolled out: {why}")
+            plan.proposal.proposal_id = f"roll-{position.id[-8:]}-{position.rolls + 1}"
+            opened = self.executor.submit(plan.proposal, self.portfolio.state(), verdict)
+            if opened.submitted:
+                order = self.portfolio.add_pending(
+                    plan.proposal, order_id=opened.order_id,
+                    limit_price=opened.limit_price, simulated=opened.simulated,
+                )
+                # Carry the count forward so a position cannot be rolled
+                # forever by resetting its history each time.
+                order.proposal.thesis = plan.reason
+                self.portfolio.pending[order.id].proposal.source = "roll"
+                self._rolls_carried[order.id] = position.rolls + 1
+                record["new_order_id"] = opened.order_id
+            else:
+                record["error"] = f"reopen failed: {opened.error}"
+            record["realized_on_close"] = round(closed.realized_pnl, 2) if closed else 0.0
+            self._emit("roll", record)
+            rolled.add(position.id)
+
+        return rolled
 
     # -- status --------------------------------------------------------------
 
