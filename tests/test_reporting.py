@@ -174,3 +174,41 @@ def test_a_reading_older_than_the_max_is_finally_dropped(monkeypatch):
     api._broker_cache["at"] -= api.BROKER_MAX_STALE_SECONDS + 1
     rest.get_account = lambda: _Result(None, ok=False, error="502")
     assert api._broker_truth(desk) is None
+
+
+# -- "no broker" and "broker not answering" need opposite treatment --------
+
+def _perf_endpoint(desk):
+    """The branch of /api/performance that chooses a mark_source."""
+    perf = {"starting_equity": 100_000.0, "equity": 100_375.0, "total_pnl": 375.0,
+            "unrealized_pnl": 375.0, "realized_pnl": 0.0, "capital_at_risk": 6018.0}
+    truth = api._broker_truth(desk)
+    if truth is None:
+        perf["mark_source"] = (
+            "unavailable" if api._broker_is_the_authority(desk) else "deflow-mid"
+        )
+        perf["broker"] = None
+    return perf
+
+
+def test_a_configured_broker_that_will_not_answer_marks_the_figures_unpublishable(monkeypatch):
+    """The exact 2026-09-01 20:07Z failure: 53 seconds after a restart the panel
+    showed +$375.00 from mid-marks while the account was at -$101.50."""
+    _settings(monkeypatch, dry_run=False, creds=True)
+
+    class Dead(_Rest):
+        def get_account(self):
+            return _Result(None, ok=False, error="connection refused")
+
+    assert _perf_endpoint(_desk(Dead()))["mark_source"] == "unavailable"
+
+
+def test_no_broker_at_all_still_publishes_mid_marks(monkeypatch):
+    """In dry-run the mid-marks ARE the book, so they are shown and labelled."""
+    _settings(monkeypatch, dry_run=True, creds=True)
+    assert _perf_endpoint(_desk(_Rest()))["mark_source"] == "deflow-mid"
+
+
+def test_missing_credentials_is_not_a_broker_fault(monkeypatch):
+    _settings(monkeypatch, dry_run=False, creds=False)
+    assert _perf_endpoint(_desk(_Rest()))["mark_source"] == "deflow-mid"

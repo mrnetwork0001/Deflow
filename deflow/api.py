@@ -45,6 +45,20 @@ _broker_lock = threading.Lock()
 _broker_cache: Dict[str, Any] = {"at": 0.0, "snapshot": None}
 
 
+def _broker_is_the_authority(desk: TradingDesk) -> bool:
+    """True when the broker holds the real book, so its silence is a fault.
+
+    Without this the endpoint cannot tell "there is no broker, mid-marks are all
+    there is" from "the broker exists and did not answer" -- and those need
+    opposite treatment on screen.
+    """
+    return (
+        desk.executor.rest is not None
+        and SETTINGS.has_alpaca_credentials
+        and not SETTINGS.dry_run
+    )
+
+
 def _broker_truth(desk: TradingDesk) -> Optional[Dict[str, Any]]:
     """Equity and unrealised P&L exactly as the broker reports them.
 
@@ -264,7 +278,19 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
         perf = desk.portfolio.performance()
         truth = _broker_truth(desk)
         if truth is None:
-            perf["mark_source"] = "deflow-mid"
+            # Two different situations, and only one of them may show a number.
+            #
+            # With no broker configured, mid-marks are the whole truth and are
+            # reported as such. But when the broker owns the book and simply has
+            # not answered -- which is every restart, before the first call
+            # lands -- a mid-mark is not a stand-in for its equity. At 20:07Z on
+            # 2026-09-01 the desk's mid-mark said $100,375.00 while the account
+            # said $99,898.50: a $476.50 error, and positive where the truth was
+            # negative, published on the headline of the public dashboard.
+            # Mid-marks price off stale quotes, which after the close are stale
+            # by definition, so the gap is widest exactly when the desk is idle
+            # and someone is most likely to be reading.
+            perf["mark_source"] = "unavailable" if _broker_is_the_authority(desk) else "deflow-mid"
             perf["broker"] = None
             return perf
 

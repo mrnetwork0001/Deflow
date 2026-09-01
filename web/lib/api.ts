@@ -48,7 +48,12 @@ export interface Performance {
    *  because a spread's long leg marks above the bid and its short leg below
    *  the ask. The dashboard must say which — silently swapping between them is
    *  the same lie as showing a number with no source. */
-  mark_source?: "alpaca" | "deflow-mid";
+  /** "alpaca" = the broker's own figure. "deflow-mid" = no broker configured,
+   *  so our quote-mid marks are the whole truth. "unavailable" = the broker
+   *  owns the book and has not answered; the money figures are then NOT
+   *  publishable and the panel must render em dashes, because a mid-mark is
+   *  not a stand-in for an account balance. */
+  mark_source?: "alpaca" | "deflow-mid" | "unavailable";
   broker?: { equity: number; as_of: string; stale_seconds?: number } | null;
   /** Present only when the broker is the headline: what our own mid-marks say,
    *  kept so the gap stays visible instead of being quietly discarded. */

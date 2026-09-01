@@ -128,6 +128,11 @@ export default function Dashboard() {
   }
 
   const perf = status?.performance;
+  // The broker owns the book. When it has not answered -- which is every
+  // restart, until the first call lands -- our own mid-marks are NOT a
+  // stand-in for its balance: on 2026-09-01 they said +$375.00 while the
+  // account said -$101.50. Blank is the honest render; the badge says why.
+  const money$ = perf && perf.mark_source !== "unavailable" ? perf : undefined;
   const envelope = status?.risk_envelope ?? {};
   const live = status?.mode === "paper";
 
@@ -273,9 +278,9 @@ export default function Dashboard() {
         <SectionRail
           counts={railCounts}
           working={(status?.working_orders?.length ?? 0) > 0}
-          equity={perf ? money(perf.equity) : null}
-          pnl={perf ? signedMoney(perf.total_pnl) : null}
-          pnlTone={perf ? (perf.total_pnl >= 0 ? "gain" : "loss") : null}
+          equity={money$ ? money(money$.equity) : null}
+          pnl={money$ ? signedMoney(money$.total_pnl) : null}
+          pnlTone={money$ ? (money$.total_pnl >= 0 ? "gain" : "loss") : null}
           stale={Boolean(error) && status !== null}
           ledgerBroken={status?.ledger.valid === false}
         />
@@ -303,18 +308,22 @@ export default function Dashboard() {
                         the same four positions. */}
                     <Badge
                       tone={
-                        perf.mark_source !== "alpaca"
-                          ? "warn"
-                          : (perf.broker?.stale_seconds ?? 0) > 0
+                        perf.mark_source === "unavailable"
+                          ? "loss"
+                          : perf.mark_source !== "alpaca"
                             ? "warn"
-                            : "info"
+                            : (perf.broker?.stale_seconds ?? 0) > 0
+                              ? "warn"
+                              : "info"
                       }
                     >
-                      {perf.mark_source !== "alpaca"
-                        ? "mid marks"
-                        : (perf.broker?.stale_seconds ?? 0) > 0
-                          ? `broker marks ${Math.round(perf.broker!.stale_seconds!)}s old`
-                          : "broker marks"}
+                      {perf.mark_source === "unavailable"
+                        ? "broker unreachable"
+                        : perf.mark_source !== "alpaca"
+                          ? "mid marks"
+                          : (perf.broker?.stale_seconds ?? 0) > 0
+                            ? `broker marks ${Math.round(perf.broker!.stale_seconds!)}s old`
+                            : "broker marks"}
                     </Badge>
                     <span className="tabular font-mono text-[10px] text-faint">
                       {perf.closed_positions} closed · {perf.open_positions} open
@@ -328,33 +337,39 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-6">
                   <BigStat
                     label="Equity"
-                    value={perf ? money(perf.equity) : null}
-                    sub={perf ? `from ${money(perf.starting_equity, 0)}` : "waiting for the desk"}
+                    value={money$ ? money(money$.equity) : null}
+                    sub={
+                      money$
+                        ? `from ${money(money$.starting_equity, 0)}`
+                        : perf?.mark_source === "unavailable"
+                          ? "broker not answering"
+                          : "waiting for the desk"
+                    }
                   />
                   <BigStat
                     label="Total P&L"
-                    value={perf ? signedMoney(perf.total_pnl) : null}
-                    tone={perf ? (perf.total_pnl >= 0 ? "gain" : "loss") : "body"}
+                    value={money$ ? signedMoney(money$.total_pnl) : null}
+                    tone={money$ ? (money$.total_pnl >= 0 ? "gain" : "loss") : "body"}
                     // The mid-mark gap is roughly what crossing every bid/ask
                     // would cost to unwind the book, so it belongs on screen
                     // rather than being thrown away once the broker's figure
                     // takes the headline. Shown only once it rounds to a dollar.
                     sub={
-                      perf
-                        ? perf.desk_mark &&
-                          Math.abs(perf.desk_mark.total_pnl - perf.total_pnl) >= 1
-                          ? `${signedPct(perf.return_pct)} · mid ${signedMoney(perf.desk_mark.total_pnl)}`
-                          : signedPct(perf.return_pct)
+                      money$
+                        ? money$.desk_mark &&
+                          Math.abs(money$.desk_mark.total_pnl - money$.total_pnl) >= 1
+                          ? `${signedPct(money$.return_pct)} · mid ${signedMoney(money$.desk_mark.total_pnl)}`
+                          : signedPct(money$.return_pct)
                         : "—"
                     }
                   />
                 </div>
 
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-                  <SmallStat label="Realised" value={perf ? signedMoney(perf.realized_pnl) : null}
-                             tone={perf && perf.realized_pnl < 0 ? "loss" : "gain"} />
-                  <SmallStat label="Unrealised" value={perf ? signedMoney(perf.unrealized_pnl) : null}
-                             tone={perf && perf.unrealized_pnl < 0 ? "loss" : "gain"} />
+                  <SmallStat label="Realised" value={money$ ? signedMoney(money$.realized_pnl) : null}
+                             tone={money$ && money$.realized_pnl < 0 ? "loss" : "gain"} />
+                  <SmallStat label="Unrealised" value={money$ ? signedMoney(money$.unrealized_pnl) : null}
+                             tone={money$ && money$.unrealized_pnl < 0 ? "loss" : "gain"} />
                   <SmallStat
                     label="Win rate"
                     // A win rate over zero closed trades is not 0%, it is undefined.
