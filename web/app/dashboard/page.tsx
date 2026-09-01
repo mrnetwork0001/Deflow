@@ -419,8 +419,9 @@ export default function Dashboard() {
                              tone={money$ && money$.unrealized_pnl < 0 ? "loss" : "gain"} />
                   <SmallStat
                     label="Win rate"
-                    // A win rate over zero closed trades is not 0%, it is undefined.
-                    value={perf?.closed_positions ? pct(perf.win_rate, 0) : null}
+                    // A win rate over zero closed trades is not 0%, it is
+                    // undefined -- and the API now agrees, sending null.
+                    value={perf?.win_rate != null ? pct(perf.win_rate, 0) : null}
                     sub={perf?.closed_positions ? `${perf.wins}W / ${perf.losses}L` : "no closed trades"}
                   />
                   <SmallStat label="Book delta" value={perf ? perf.net_delta.toFixed(3) : null}

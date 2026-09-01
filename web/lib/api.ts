@@ -40,8 +40,8 @@ export const signedPct = (n: number, digits = 2) => `${n >= 0 ? "+" : "−"}${Ma
 export interface Performance {
   starting_equity: number; equity: number; realized_pnl: number; unrealized_pnl: number;
   total_pnl: number; return_pct: number; day_pnl: number; open_positions: number;
-  closed_positions: number; wins: number; losses: number; win_rate: number;
-  avg_win: number; avg_loss: number; profit_factor: number | null;
+  closed_positions: number; wins: number; losses: number; win_rate: number | null;
+  avg_win: number | null; avg_loss: number | null; profit_factor: number | null;
   capital_at_risk: number; capital_at_risk_pct: number; net_delta: number; net_vega: number;
   /** Which basis the money figures above are on. "alpaca" means the broker's
    *  own numbers; "deflow-mid" means our quote-mid marks, which run high

@@ -294,6 +294,12 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
         description="Autonomous multi-agent options desk on Alpaca paper trading.",
         version="1.0.0",
         lifespan=lifespan,
+        # FastAPI claims /docs for Swagger by default, and the web app now has
+        # a real documentation page at /docs/. A judge typing the path without
+        # the slash was landing on Swagger instead of the docs. The API's own
+        # browser lives under /api/ with everything else.
+        docs_url="/api/docs",
+        redoc_url=None,
     )
     # The dashboard may be served from another origin entirely -- Vercel in
     # production, localhost:3000 in development -- so the browser's origin is

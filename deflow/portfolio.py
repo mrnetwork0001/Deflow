@@ -694,9 +694,12 @@ class Portfolio:
             "closed_positions": len(self.closed),
             "wins": len(wins),
             "losses": len(losses),
-            "win_rate": round(len(wins) / len(self.closed), 4) if self.closed else 0.0,
-            "avg_win": round(gross_win / len(wins), 2) if wins else 0.0,
-            "avg_loss": round(-gross_loss / len(losses), 2) if losses else 0.0,
+            # A win rate over zero closed trades is not 0%, it is undefined --
+            # and the API is as judge-facing as the dashboard, which already
+            # renders these as dashes. None, not a fabricated zero.
+            "win_rate": round(len(wins) / len(self.closed), 4) if self.closed else None,
+            "avg_win": round(gross_win / len(wins), 2) if wins else None,
+            "avg_loss": round(-gross_loss / len(losses), 2) if losses else None,
             # Profit factor is undefined with no losses; report None rather
             # than an infinity that would render as a fake headline number.
             "profit_factor": round(gross_win / gross_loss, 3) if gross_loss > 0 else None,

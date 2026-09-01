@@ -22,7 +22,7 @@ candidate under **two** measures and trades the difference:
 | Measure | Volatility | Meaning |
 |---|---|---|
 | Risk-neutral | implied | What the market says it is worth (≈ 0 EV, as arbitrage requires) |
-| Physical | realised (HV60) | What it is worth if the underlying keeps moving as it has |
+| Physical | jump-robust bipower forecast | What it is worth if the underlying keeps moving as it has |
 
 The dollar gap between them *is* the edge. Anything with non-positive expectancy under the
 physical measure is refused — **however high its win rate**. A 79%-probability credit spread
@@ -31,8 +31,9 @@ valuable judgement the system makes.
 
 Regime decides the structure: implied rich and IV rank ≥ 40% → sell defined-risk premium (bull
 put / bear call spread, or an iron condor on a neutral tape); implied cheap with a trend to pay
-for the theta → buy a debit spread; otherwise stand down. Roughly half of all symbol-cycles end
-in no trade, and each one is logged with the numbers that produced it.
+for the theta → buy a debit spread; otherwise stand down. The overwhelming majority of
+symbol-cycles end in no trade - day one logged 190 refusals against 5 fills - and each one is
+logged with the numbers that produced it.
 
 ## 2. AI logic — the model is the least-trusted component
 
@@ -66,12 +67,12 @@ no retry. Same proposal plus same book returns the same verdict, forever.
 | 1 | defined-risk structure | shorts covered | | 7 | portfolio delta | ±1.20 |
 | 2 | max loss per trade | 2% ($2,000) | | 8 | open positions | ≤ 6 |
 | 3 | trade delta | ±0.35 | | 9 | DTE window | 7–60 |
-| 4 | probability of profit | ≥ 65% | | 10 | payoff quality | credit ≥ 15% of width |
+| 4 | probability of profit | credit ≥ 65% · debit ≥ 30% + expectancy | | 10 | payoff quality | credit ≥ 15% of width |
 | 5 | aggregate book risk | 6% | | 11 | daily drawdown | kill switch at −3% |
 | 6 | per-symbol risk | 3% | | 12 | vega ceiling | 2.5 per $1k equity |
 
 Plus a mandatory exit guard that never consults a model: close at **50% of defined max loss**,
-close at **75% of max profit**, force-close inside **3 DTE**.
+take profits on a target that tightens toward expiry (75% of max profit at 30+ DTE, 40% by 7 DTE), force-close inside **3 DTE**.
 
 Four properties are enforced by construction:
 
@@ -121,7 +122,7 @@ here is inspectable before a credential is issued; **all simulated figures are l
 `simulated: true` in the API, the ledger, the dashboard and the terminal, and are never reported
 as trading results.**
 
-`python main.py --demo` prints the full six-stage trace for one cycle. `pytest tests/` runs 172
+`python main.py --demo` prints the full six-stage trace for one cycle. `pytest tests/` runs 250
 tests written from the attacker's side — 66 of them are attempts to get capital past a breaker.
 
 ---
