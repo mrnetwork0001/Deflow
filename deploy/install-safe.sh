@@ -23,7 +23,7 @@
 set -euo pipefail
 
 PORT="${1:-8000}"
-APP_DIR=/opt/deflow
+APP_DIR="${APP_DIR:-/opt/deflow}"
 REPO=https://github.com/mrnetwork0001/Deflow.git
 GO_VERSION=1.24.0
 
@@ -43,11 +43,26 @@ if ss -ltn 2>/dev/null | grep -q "127.0.0.1:${PORT} \|0.0.0.0:${PORT} \|:::${POR
 fi
 skip "port ${PORT} is free"
 
-if [[ -e "$APP_DIR" && ! -d "$APP_DIR/.git" ]]; then
-  echo "    ERROR: $APP_DIR exists and is not a Deflow checkout. Refusing to overwrite."
-  exit 1
+# The directory may legitimately exist without being a checkout: useradd
+# --create-home below creates it, so any earlier run that failed after the user
+# was added but before the clone leaves a skeleton home behind. Refusing on
+# mere existence made the installer un-retryable after its own partial failure.
+# Refuse only if it holds files that are not ours.
+if [[ -e "$APP_DIR" ]]; then
+  if [[ -d "$APP_DIR/.git" ]]; then
+    skip "$APP_DIR is an existing Deflow checkout — will update in place"
+  else
+    STRAY=$(find "$APP_DIR" -mindepth 1 -maxdepth 1 \
+              ! -name '.*' ! -name 'data' ! -name 'bin' ! -name '.venv' 2>/dev/null | head -5)
+    if [[ -n "$STRAY" ]]; then
+      echo "    ERROR: $APP_DIR holds files that are not ours. Refusing to overwrite:"
+      echo "$STRAY" | sed 's/^/           /'
+      echo "           Move it aside, or install elsewhere with APP_DIR=/opt/deflow2"
+      exit 1
+    fi
+    skip "$APP_DIR exists but holds only a home skeleton — safe to use"
+  fi
 fi
-skip "$APP_DIR is safe to use"
 
 if systemctl list-unit-files 2>/dev/null | grep -q '^deflow.service'; then
   warn "an existing deflow.service will be replaced (that is ours)"
@@ -83,8 +98,15 @@ if [[ -d "$APP_DIR/.git" ]]; then
   git -C "$APP_DIR" reset --hard --quiet origin/main
   skip "updated existing checkout"
 else
-  git clone --quiet "$REPO" "$APP_DIR"
-  skip "cloned"
+  # git clone refuses a non-empty directory, and a skeleton home is non-empty
+  # (.bashrc, .profile). Clone into a temp path and move the contents across so
+  # the existing home, its ownership and any data/ survive.
+  TMP_CLONE=$(mktemp -d)
+  git clone --quiet "$REPO" "$TMP_CLONE/repo"
+  mv "$TMP_CLONE/repo/.git" "$APP_DIR/.git"
+  rm -rf "$TMP_CLONE"
+  git -C "$APP_DIR" reset --hard --quiet HEAD
+  skip "cloned into the existing directory"
 fi
 mkdir -p "$APP_DIR/data"
 
