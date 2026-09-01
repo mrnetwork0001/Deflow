@@ -119,6 +119,9 @@ function draw(
   });
 
   // Footer: the basis the money is on, and the chain that makes it checkable.
+  // Two rows, not one: at 18px mono the basis+hash line alone runs ~750px and
+  // the disclaimer ~390px -- side by side they overlap in the middle of a
+  // 1072px-wide content box, which is exactly how it shipped the first time.
   g.fillStyle = faint;
   g.font = `400 18px ${MONO}`;
   const basis =
@@ -127,9 +130,9 @@ function draw(
       : card.basis === "deflow-mid"
         ? "desk quote-mid marks"
         : "no mark basis";
-  g.fillText(`${basis} · ledger ${card.ledger_head.slice(0, 16)}… hash-chained`, 64, 584);
+  g.fillText(`${basis} · ledger ${card.ledger_head.slice(0, 16)}… hash-chained`, 64, 570);
   g.textAlign = "right";
-  g.fillText("Paper trading · hypothetical results", W - 64, 584);
+  g.fillText("Paper trading · hypothetical results", W - 64, 598);
   g.textAlign = "left";
 }
 
