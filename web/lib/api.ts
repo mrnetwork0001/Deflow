@@ -80,3 +80,51 @@ export interface Position {
 }
 
 export interface LedgerEntry { seq: number; at: string; event: string; payload: any; hash: string; prev_hash: string; }
+
+// --- Equity curve ----------------------------------------------------------
+
+export interface EquityPoint {
+  /** Unix seconds when sourced from Alpaca, ISO-8601 when from the ledger. */
+  t: number | string;
+  equity: number;
+  pnl: number;
+}
+
+export interface EquityCurve {
+  source: "alpaca" | "ledger";
+  base_value: number;
+  points: EquityPoint[];
+  note?: string;
+}
+
+/** Normalise either timestamp form to milliseconds. */
+export const pointMillis = (t: number | string): number =>
+  typeof t === "number" ? t * 1000 : Date.parse(t);
+
+// --- Refusals --------------------------------------------------------------
+
+export type RefusalStage = "analyst" | "reasoning" | "auditor" | "risk_gate";
+
+export interface Refusal {
+  seq: number;
+  at: string;
+  stage: RefusalStage;
+  symbol: string;
+  reason: string;
+}
+
+export interface Refusals {
+  total: number;
+  by_stage: Partial<Record<RefusalStage, number>>;
+  refusals: Refusal[];
+}
+
+// --- Ledger ----------------------------------------------------------------
+
+export interface ChainStatus {
+  valid: boolean;
+  entries: number;
+  head: string;
+  broken_at: number | null;
+  detail: string;
+}
