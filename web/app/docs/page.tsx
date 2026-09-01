@@ -253,6 +253,47 @@ export default function DocsPage() {
         </nav>
       </header>
 
+      {/* ---- mobile nav: the sidebar, collapsed into a sliding strip ----
+          Below lg the left rail disappears, which left phones with no way to
+          navigate twelve sections. The groups render as columns in a
+          horizontally sliding band instead - same items, same active accent,
+          same scrollspy. */}
+      <nav
+        aria-label="Documentation sections"
+        className="mx-auto max-w-[1400px] border-y border-ink-line px-6 py-4 lg:hidden"
+      >
+        <div className="flex gap-8 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+          {GROUPS.map((group) => (
+            <div key={group.label} className="shrink-0">
+              <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.24em] text-faint">
+                {group.label}
+              </div>
+              <ul>
+                {group.items.map(([id, label]) => {
+                  const on = active === id;
+                  return (
+                    <li key={id}>
+                      <a
+                        href={`#${id}`}
+                        onClick={() => onNavClick(id)}
+                        aria-current={on ? "true" : undefined}
+                        className={`block whitespace-nowrap border-l-2 py-1 pl-3 pr-2 font-sans text-[13px] transition-colors ${
+                          on
+                            ? "border-gain bg-gain/[0.06] text-gain"
+                            : "border-ink-line text-muted"
+                        }`}
+                      >
+                        {label}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </nav>
+
       <div className="mx-auto grid max-w-[1400px] gap-12 px-6 pb-24 pt-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         {/* ---- sidebar -------------------------------------------------- */}
         <aside className="hidden lg:block">
