@@ -30,6 +30,51 @@ def rolling_realized_vol(closes: Sequence[float], window: int = 20) -> List[floa
     return out
 
 
+# E|Z| for a standard normal, the scaling constant bipower variation needs.
+_MU1 = math.sqrt(2.0 / math.pi)
+
+
+def bipower_vol(closes: Sequence[float], window: int = 21) -> float:
+    """Jump-robust realised volatility (Barndorff-Nielsen & Shephard).
+
+    Ordinary close-to-close realised vol *squares* each return, so one gap
+    dominates the whole estimate. Over a 60-day window containing an earnings
+    move that is exactly what happens: MSFT printed +14.4% on a single session
+    and its trailing 60-day vol read 42% against a 22% 20-day vol.
+
+    That matters here because realised vol is one half of the variance risk
+    premium. Measured naively, every stock that has recently reported earnings
+    looks like its options are cheap -- and the desk would buy convexity
+    precisely when implied vol is collapsing post-event, which is the worst
+    time to own theta.
+
+    Bipower variation multiplies *adjacent* absolute returns instead of
+    squaring each one. An isolated jump appears in only two products and is
+    damped rather than amplified, leaving an estimate of the continuous
+    diffusion the option's remaining life will actually be exposed to.
+    """
+    rets = log_returns(closes[-(window + 1):])
+    if len(rets) < 3:
+        return 0.0
+    bv = sum(abs(rets[i]) * abs(rets[i - 1]) for i in range(1, len(rets))) / (len(rets) - 1)
+    return math.sqrt(max(bv, 0.0) / (_MU1 * _MU1) * TRADING_DAYS)
+
+
+def forecast_vol(closes: Sequence[float]) -> float:
+    """Best simple forecast of the volatility a 30-day option will face.
+
+    Weighted toward the jump-robust one-month estimate, with a longer window
+    mixed in for stability so a single quiet fortnight cannot collapse the
+    forecast to near zero.
+    """
+    near, far = bipower_vol(closes, 21), bipower_vol(closes, 63)
+    if near <= 0:
+        return far
+    if far <= 0:
+        return near
+    return 0.70 * near + 0.30 * far
+
+
 def sma(values: Sequence[float], window: int) -> float:
     if len(values) < window or window <= 0:
         return sum(values) / len(values) if values else 0.0
@@ -101,6 +146,8 @@ def trend_score(closes: Sequence[float]) -> float:
 
 
 __all__ = [
+    "bipower_vol",
+    "forecast_vol",
     "log_returns",
     "percentile_rank",
     "range_rank",

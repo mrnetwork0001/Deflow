@@ -259,7 +259,7 @@ class TradingDesk:
         proposal.source = choice.model
 
         # --- Stage 4: Adversarial audit ------------------------------------
-        audit = self.auditor.audit(proposal, realised_vol=view.snapshot.hv_60d)
+        audit = self.auditor.audit(proposal, realised_vol=view.snapshot.hv_forecast)
         self._emit("audit", {"symbol": symbol, "proposal_id": proposal.proposal_id, **audit.to_dict()})
 
         if not audit.passed:

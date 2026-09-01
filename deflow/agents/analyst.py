@@ -52,7 +52,7 @@ class AnalystView:
         s = self.snapshot
         return (
             f"{s.symbol} @ ${s.price:,.2f} | regime={s.regime.value} | "
-            f"IV30={s.iv_30d:.1%} HV60={s.hv_60d:.1%} VRP={s.variance_premium:+.1%} | "
+            f"IV30={s.iv_30d:.1%} HVfc={s.hv_forecast:.1%} VRP={s.variance_premium:+.1%} | "
             f"IV rank={s.iv_rank:.0%} | trend={s.trend_score:+.2f} RSI={s.rsi14:.0f} | "
             f"stance={self.stance} bias={self.bias} conviction={self.conviction:.0%}"
         )
@@ -106,14 +106,15 @@ class MacroVolatilityAnalyst:
         if vrp >= VRP_RICH and s.iv_rank >= MIN_IV_RANK_TO_SELL:
             stance = "sell_premium"
             reasons.append(
-                f"Implied {s.iv_30d:.1%} exceeds realised {s.hv_60d:.1%} by {vrp:+.1%} "
-                f"({vrp * 100:.1f} vol points) with IV rank at {s.iv_rank:.0%} — premium is rich."
+                f"Implied {s.iv_30d:.1%} exceeds forecast realised {s.hv_forecast:.1%} by "
+                f"{vrp:+.1%} ({vrp * 100:.1f} vol points) with IV rank at {s.iv_rank:.0%} — "
+                f"premium is rich."
             )
         elif vrp <= VRP_CHEAP and s.iv_rank <= MAX_IV_RANK_TO_BUY:
             stance = "buy_convexity"
             reasons.append(
-                f"Implied {s.iv_30d:.1%} sits below realised {s.hv_60d:.1%} ({vrp:+.1%}) "
-                f"with IV rank at {s.iv_rank:.0%} — convexity is underpriced."
+                f"Implied {s.iv_30d:.1%} sits below forecast realised {s.hv_forecast:.1%} "
+                f"({vrp:+.1%}) with IV rank at {s.iv_rank:.0%} — convexity is underpriced."
             )
         else:
             stance = "stand_down"

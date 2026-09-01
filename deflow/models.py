@@ -414,13 +414,17 @@ class MarketSnapshot:
     price: float
     iv_rank: float
     iv_30d: float
-    hv_60d: float
+    hv_60d: float               # raw trailing realised vol, reported as context
     trend_score: float          # -1 (strong down) .. +1 (strong up)
     regime: Regime
     sma20: float = 0.0
     sma50: float = 0.0
     rsi14: float = 50.0
-    variance_premium: float = 0.0   # iv_30d - hv_60d
+    # Jump-robust forecast of the vol a 30-day option will actually face. This,
+    # not hv_60d, is what the variance premium is measured against -- see
+    # indicators.bipower_vol for why the raw trailing figure is unusable.
+    hv_forecast: float = 0.0
+    variance_premium: float = 0.0   # iv_30d - hv_forecast
     as_of: str = field(default_factory=utcnow)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -430,6 +434,7 @@ class MarketSnapshot:
             "iv_rank": round(self.iv_rank, 3),
             "iv_30d": round(self.iv_30d, 4),
             "hv_60d": round(self.hv_60d, 4),
+            "hv_forecast": round(self.hv_forecast, 4),
             "variance_premium": round(self.variance_premium, 4),
             "trend_score": round(self.trend_score, 3),
             "regime": self.regime.value,
