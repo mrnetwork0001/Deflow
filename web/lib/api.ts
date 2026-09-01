@@ -43,6 +43,16 @@ export interface Performance {
   closed_positions: number; wins: number; losses: number; win_rate: number;
   avg_win: number; avg_loss: number; profit_factor: number | null;
   capital_at_risk: number; capital_at_risk_pct: number; net_delta: number; net_vega: number;
+  /** Which basis the money figures above are on. "alpaca" means the broker's
+   *  own numbers; "deflow-mid" means our quote-mid marks, which run high
+   *  because a spread's long leg marks above the bid and its short leg below
+   *  the ask. The dashboard must say which — silently swapping between them is
+   *  the same lie as showing a number with no source. */
+  mark_source?: "alpaca" | "deflow-mid";
+  broker?: { equity: number; as_of: string } | null;
+  /** Present only when the broker is the headline: what our own mid-marks say,
+   *  kept so the gap stays visible instead of being quietly discarded. */
+  desk_mark?: { equity: number; unrealized_pnl: number; total_pnl: number; basis: string };
 }
 
 export interface Breaker { id: number; name: string; passed: boolean; detail: string; observed: number | null; limit: number | null; }

@@ -9,7 +9,8 @@ import { PositionsTable } from "@/components/PositionsTable";
 import { Refusals } from "@/components/Refusals";
 import { RegimeGrid } from "@/components/RegimeGrid";
 import { RiskGatePanel } from "@/components/RiskGatePanel";
-import { Badge, Meter, Panel, Stat } from "@/components/ui";
+import { SectionRail } from "@/components/SectionRail";
+import { Badge, Meter, Panel } from "@/components/ui";
 import {
   AnalystView, Position, Status, getJSON, money, postJSON, pct, signedMoney, signedPct,
 } from "@/lib/api";
@@ -62,6 +63,11 @@ function StatusItem({ dot, label, title }: { dot: string; label: string; title: 
 export default function Dashboard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [views, setViews] = useState<AnalystView[]>([]);
+  // `views` starts empty and refreshViews swallows its error, so views.length === 0
+  // covers a first load, a failed poll and a genuinely empty scan identically.
+  // Without this flag the rail's "3/5" badge would render "0/0" — a claim about
+  // the universe that has never been made.
+  const [viewsLoaded, setViewsLoaded] = useState(false);
   const [positions, setPositions] = useState<{ open: Position[]; closed: Position[] }>({ open: [], closed: [] });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,6 +91,9 @@ export default function Dashboard() {
     try {
       const a = await getJSON<{ views: AnalystView[] }>("/api/analysis");
       setViews(a.views);
+      setViewsLoaded(true);
+      // Deliberately not cleared in the catch: a failed poll does not unmake the
+      // last good scan, which is still the last thing that was true.
     } catch { /* transient */ }
   }, []);
 
@@ -122,8 +131,26 @@ export default function Dashboard() {
   const envelope = status?.risk_envelope ?? {};
   const live = status?.mode === "paper";
 
+  // Rail badges. Every one of these is null until its own source has answered;
+  // SectionRail renders a null as no badge at all, never as 0.
+  //
+  // Structures reads positions.open.length and NOT perf.open_positions. Both are
+  // in scope, and they come from two different responses in the same Promise.all,
+  // so a partial failure can leave them one apart. The rail sits directly beside
+  // PositionsTable, whose own header renders open.length behind the same
+  // loaded={status !== null} gate; matching the visible neighbour beats matching
+  // a different response. The next person to add a row will reach for perf —
+  // this comment is why not.
+  const railCounts = {
+    regime: viewsLoaded ? `${views.filter((v) => v.tradeable).length}/${views.length}` : null,
+    structures: status !== null ? String(positions.open.length) : null,
+    // envelope is `?? {}`, so vetoes is undefined before load and `?? 0` would
+    // fabricate a zero. Number.isFinite still lets a genuine zero through.
+    gate: Number.isFinite(envelope.vetoes) ? String(envelope.vetoes) : null,
+  };
+
   return (
-    <main className="mx-auto max-w-[1600px] p-4 sm:p-6">
+    <main className="mx-auto max-w-[1600px] p-4 sm:p-6 xl:max-w-[1776px]">
       {/* ---- Header ---------------------------------------------------- */}
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {/* The wordmark is the way back to the marketing site, which is where
@@ -140,18 +167,30 @@ export default function Dashboard() {
               rather than a row of things to press. Every one of these used to
               be a bordered pill identical to the buttons beside them. */}
           <div className="flex items-stretch divide-x divide-ink-line overflow-hidden rounded-md border border-ink-line bg-ink-raised">
+            {/* Both of these used to assert a mode before the desk had said
+                anything — "simulation" and "deterministic" are claims, and a
+                null status is not evidence for either. Same three-state shape
+                the market item two rows down already uses. */}
             <StatusItem
-              dot={live ? "bg-gain" : "bg-warn"}
-              label={live ? "Alpaca paper" : "simulation"}
-              title={live ? "Trading a live Alpaca paper account" : "No credentials — seeded simulated market"}
+              dot={status === null ? "bg-faint" : live ? "bg-gain" : "bg-warn"}
+              label={status === null ? "—" : live ? "Alpaca paper" : "simulation"}
+              title={
+                status === null
+                  ? "Waiting for the desk to report its trading mode"
+                  : live
+                    ? "Trading a live Alpaca paper account"
+                    : "No credentials — seeded simulated market"
+              }
             />
             <StatusItem
               dot={status?.reasoning.featherless_enabled ? "bg-info" : "bg-faint"}
-              label={status?.reasoning.featherless_enabled ? "Featherless" : "deterministic"}
+              label={status === null ? "—" : status.reasoning.featherless_enabled ? "Featherless" : "deterministic"}
               title={
-                status?.reasoning.featherless_enabled
-                  ? `Reasoning layer: ${status.reasoning.model}`
-                  : "No model key — using the deterministic ranker"
+                status === null
+                  ? "Waiting for the desk to report its reasoning layer"
+                  : status.reasoning.featherless_enabled
+                    ? `Reasoning layer: ${status.reasoning.model}`
+                    : "No model key — using the deterministic ranker"
               }
             />
             <StatusItem
@@ -198,112 +237,183 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* ---- Account ----------------------------------------------------
-          Equity and P&L are the two numbers anyone opens this page for, so
-          they are set larger than the rest rather than sharing a six-column
-          grid with book delta. */}
-      <Panel
-        title="Account"
-        right={
-          perf ? (
-            <span className="tabular font-mono text-[10px] text-faint">
-              {perf.closed_positions} closed · {perf.open_positions} open
-            </span>
-          ) : null
-        }
-        className="mb-4"
-      >
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
-          <div className="grid grid-cols-2 gap-6">
-            <BigStat
-              label="Equity"
-              value={perf ? money(perf.equity) : null}
-              sub={perf ? `from ${money(perf.starting_equity, 0)}` : "waiting for the desk"}
-            />
-            <BigStat
-              label="Total P&L"
-              value={perf ? signedMoney(perf.total_pnl) : null}
-              tone={perf ? (perf.total_pnl >= 0 ? "gain" : "loss") : "body"}
-              sub={perf ? signedPct(perf.return_pct) : "—"}
-            />
-          </div>
+      {/* The rail column and the content column. minmax(0,1fr) here AND min-w-0
+          on the content div are both required: a grid item's default
+          min-width:auto lets PositionsTable's min-w-[860px] table size the track
+          and scroll the whole page sideways.
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-            <SmallStat label="Realised" value={perf ? signedMoney(perf.realized_pnl) : null}
-                       tone={perf && perf.realized_pnl < 0 ? "loss" : "gain"} />
-            <SmallStat label="Unrealised" value={perf ? signedMoney(perf.unrealized_pnl) : null}
-                       tone={perf && perf.unrealized_pnl < 0 ? "loss" : "gain"} />
-            <SmallStat
-              label="Win rate"
-              // A win rate over zero closed trades is not 0%, it is undefined.
-              value={perf?.closed_positions ? pct(perf.win_rate, 0) : null}
-              sub={perf?.closed_positions ? `${perf.wins}W / ${perf.losses}L` : "no closed trades"}
-            />
-            <SmallStat label="Book delta" value={perf ? perf.net_delta.toFixed(3) : null}
-                       sub={perf ? `vega ${perf.net_vega.toFixed(1)}` : undefined} />
-          </dl>
-        </div>
-
-        {/* Capital at risk against the 6% aggregate ceiling. */}
-        <div className="mt-6 border-t border-ink-line pt-4">
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 font-mono text-[10px]">
-            <span className="uppercase tracking-[0.12em] text-faint">capital at risk</span>
-            <span className="tabular text-muted">
-              {perf ? (
-                <>
-                  <span className="text-body">{money(perf.capital_at_risk, 0)}</span>
-                  {" · "}
-                  {perf.capital_at_risk_pct.toFixed(2)}% of{" "}
-                  {((envelope.max_aggregate_risk_pct ?? 0.06) * 100).toFixed(0)}% ceiling
-                </>
-              ) : (
-                "—"
-              )}
-            </span>
-          </div>
-          <Meter
-            value={perf?.capital_at_risk_pct ?? 0}
-            max={(envelope.max_aggregate_risk_pct ?? 0.06) * 100}
-          />
-        </div>
-      </Panel>
-
-      {/* ---- Equity curve ------------------------------------------------ */}
-      <div className="mb-4">
-        <EquityCurve />
-      </div>
-
-      {/* ---- Regime ------------------------------------------------------ */}
-      <div className="mb-4">
-        <RegimeGrid views={views} />
-      </div>
-
-      {/* ---- Positions + stream ------------------------------------------ */}
-      <div className="mb-4 grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <PositionsTable
-          open={positions.open}
-          closed={positions.closed}
-          working={status?.working_orders ?? []}
-          loaded={status !== null}
+          This wrapper must NEVER gain overflow-hidden. That is the reflexive fix
+          when a horizontal scrollbar appears, and it silently kills the rail's
+          position:sticky with no error. The fix is always min-w-0. */}
+      <div className="xl:grid xl:grid-cols-[148px_minmax(0,1fr)] xl:gap-x-7">
+        <SectionRail
+          counts={railCounts}
+          working={(status?.working_orders?.length ?? 0) > 0}
+          equity={perf ? money(perf.equity) : null}
+          pnl={perf ? signedMoney(perf.total_pnl) : null}
+          pnlTone={perf ? (perf.total_pnl >= 0 ? "gain" : "loss") : null}
           stale={Boolean(error) && status !== null}
+          ledgerBroken={status?.ledger.valid === false}
         />
-        <EventStream />
-      </div>
 
-      {/* ---- Refusals + risk gate ----------------------------------------
-          Deliberately adjacent: roughly half of every scan ends in a refusal,
-          and the gate is where the last of them happen. Together they are the
-          system's actual behaviour, not an absence of it. */}
-      <div className="mb-4">
-        <Refusals />
-      </div>
+        <div className="min-w-0">
 
-      <RiskGatePanel envelope={envelope} />
+          {/* ---- Account ----------------------------------------------------
+              Equity and P&L are the two numbers anyone opens this page for, so
+              they are set larger than the rest rather than sharing a six-column
+              grid with book delta.
+
+              The scroll targets below are plain divs, never sections: Panel already
+              renders <section aria-label>, and a second region would nest or go
+              unnamed. tabIndex={-1} lets a rail row hand focus into the section. */}
+          <div id="account" tabIndex={-1} className="scroll-mt-20 focus:outline-none xl:scroll-mt-6">
+            <Panel
+              title="Account"
+              right={
+                perf ? (
+                  <div className="flex items-center gap-3">
+                    {/* Which basis these figures are on. A money number with no
+                        stated source is the thing this project argues against,
+                        and the two bases genuinely disagree: on 2026-09-01 our
+                        mid-marks read $581.55 against the broker's $405.60 on
+                        the same four positions. */}
+                    <Badge tone={perf.mark_source === "alpaca" ? "info" : "warn"}>
+                      {perf.mark_source === "alpaca" ? "broker marks" : "mid marks"}
+                    </Badge>
+                    <span className="tabular font-mono text-[10px] text-faint">
+                      {perf.closed_positions} closed · {perf.open_positions} open
+                    </span>
+                  </div>
+                ) : null
+              }
+              className="mb-4"
+            >
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
+                <div className="grid grid-cols-2 gap-6">
+                  <BigStat
+                    label="Equity"
+                    value={perf ? money(perf.equity) : null}
+                    sub={perf ? `from ${money(perf.starting_equity, 0)}` : "waiting for the desk"}
+                  />
+                  <BigStat
+                    label="Total P&L"
+                    value={perf ? signedMoney(perf.total_pnl) : null}
+                    tone={perf ? (perf.total_pnl >= 0 ? "gain" : "loss") : "body"}
+                    // The mid-mark gap is roughly what crossing every bid/ask
+                    // would cost to unwind the book, so it belongs on screen
+                    // rather than being thrown away once the broker's figure
+                    // takes the headline. Shown only once it rounds to a dollar.
+                    sub={
+                      perf
+                        ? perf.desk_mark &&
+                          Math.abs(perf.desk_mark.total_pnl - perf.total_pnl) >= 1
+                          ? `${signedPct(perf.return_pct)} · mid ${signedMoney(perf.desk_mark.total_pnl)}`
+                          : signedPct(perf.return_pct)
+                        : "—"
+                    }
+                  />
+                </div>
+
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+                  <SmallStat label="Realised" value={perf ? signedMoney(perf.realized_pnl) : null}
+                             tone={perf && perf.realized_pnl < 0 ? "loss" : "gain"} />
+                  <SmallStat label="Unrealised" value={perf ? signedMoney(perf.unrealized_pnl) : null}
+                             tone={perf && perf.unrealized_pnl < 0 ? "loss" : "gain"} />
+                  <SmallStat
+                    label="Win rate"
+                    // A win rate over zero closed trades is not 0%, it is undefined.
+                    value={perf?.closed_positions ? pct(perf.win_rate, 0) : null}
+                    sub={perf?.closed_positions ? `${perf.wins}W / ${perf.losses}L` : "no closed trades"}
+                  />
+                  <SmallStat label="Book delta" value={perf ? perf.net_delta.toFixed(3) : null}
+                             sub={perf ? `vega ${perf.net_vega.toFixed(1)}` : undefined} />
+                </dl>
+              </div>
+
+              {/* Capital at risk against the 6% aggregate ceiling. */}
+              <div className="mt-6 border-t border-ink-line pt-4">
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 font-mono text-[10px]">
+                  <span className="uppercase tracking-[0.12em] text-faint">capital at risk</span>
+                  <span className="tabular text-muted">
+                    {perf ? (
+                      <>
+                        <span className="text-body">{money(perf.capital_at_risk, 0)}</span>
+                        {" · "}
+                        {perf.capital_at_risk_pct.toFixed(2)}% of{" "}
+                        {((envelope.max_aggregate_risk_pct ?? 0.06) * 100).toFixed(0)}% ceiling
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                </div>
+                {/* Not drawn at all before perf lands, matching Meter's own !usable
+                    behaviour and the em dash in the row above. A zero-width bar is a
+                    measurement, and there is nothing to measure yet. */}
+                {perf && (
+                  <Meter
+                    value={perf.capital_at_risk_pct}
+                    max={(envelope.max_aggregate_risk_pct ?? 0.06) * 100}
+                  />
+                )}
+              </div>
+            </Panel>
+          </div>
+
+          {/* ---- Equity curve ------------------------------------------------ */}
+          <div id="equity" tabIndex={-1} className="mb-4 scroll-mt-20 focus:outline-none xl:scroll-mt-6">
+            <EquityCurve />
+          </div>
+
+          {/* ---- Regime ------------------------------------------------------ */}
+          <div id="regime" tabIndex={-1} className="mb-4 scroll-mt-20 focus:outline-none xl:scroll-mt-6">
+            <RegimeGrid views={views} />
+          </div>
+
+          {/* ---- Positions + stream ------------------------------------------
+              The anchor rides the existing grid container rather than a new wrapper
+              around PositionsTable: the table carries its own min-w-0 as a direct
+              grid child, and a wrapper would have to re-carry it or the 1.35fr
+              column gets sized by its min-w-[860px]. */}
+          <div id="structures" tabIndex={-1} className="mb-4 grid gap-4 scroll-mt-20 focus:outline-none xl:scroll-mt-6 xl:grid-cols-[1.35fr_1fr]">
+            <PositionsTable
+              open={positions.open}
+              closed={positions.closed}
+              working={status?.working_orders ?? []}
+              loaded={status !== null}
+              stale={Boolean(error) && status !== null}
+            />
+            {/* min-w-0 is mandatory — this div is now the grid item. */}
+            <div id="stream" tabIndex={-1} className="min-w-0 scroll-mt-20 focus:outline-none xl:scroll-mt-6">
+              <EventStream />
+            </div>
+          </div>
+
+          {/* ---- Refusals + risk gate ----------------------------------------
+              Deliberately adjacent: roughly half of every scan ends in a refusal,
+              and the gate is where the last of them happen. Together they are the
+              system's actual behaviour, not an absence of it. */}
+          <div id="refusals" tabIndex={-1} className="mb-4 scroll-mt-20 focus:outline-none xl:scroll-mt-6">
+            <Refusals />
+          </div>
+
+          {/* No bottom margin: the footer's mt-6 still supplies the gap. */}
+          <div id="gate" tabIndex={-1} className="scroll-mt-20 focus:outline-none xl:scroll-mt-6">
+            <RiskGatePanel envelope={envelope} />
+          </div>
+
+        </div>
+      </div>
 
       <footer className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-ink-line pt-3 text-[10px] text-muted">
+        {/* This line used to read "0 cycles · risk gate vundefined · 0
+            evaluations, 0 vetoes" before the first response. Number.isFinite
+            rather than ?? so a genuine zero still prints as zero. */}
         <span>
-          {status?.cycles_run ?? 0} cycles · risk gate v{envelope.gate_version} ·{" "}
-          {envelope.evaluations ?? 0} evaluations, {envelope.vetoes ?? 0} vetoes
+          {status ? status.cycles_run : "—"} cycles · risk gate{" "}
+          {envelope.gate_version ? `v${envelope.gate_version}` : "—"} ·{" "}
+          {Number.isFinite(envelope.evaluations) ? envelope.evaluations : "—"} evaluations,{" "}
+          {Number.isFinite(envelope.vetoes) ? envelope.vetoes : "—"} vetoes
         </span>
         <span>
           Paper trading only. Simulated results are hypothetical and do not represent actual trading.

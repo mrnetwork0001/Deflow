@@ -45,9 +45,12 @@ export function PositionsTable({
           Open structures
         </h2>
         <div className="flex items-center gap-4">
-          <Count n={open.length} label="live" tone="text-gain" />
-          <Count n={working.length} label="working" tone="text-warn" />
-          <Count n={closed.length} label="closed" tone="text-body" />
+          {/* null, not 0, before the first response: "0 live · 0 working ·
+              0 closed" is a claim about the book made before the book has been
+              seen. Same gate the empty state below already uses. */}
+          <Count n={loaded ? open.length : null} label="live" tone="text-gain" />
+          <Count n={loaded ? working.length : null} label="working" tone="text-warn" />
+          <Count n={loaded ? closed.length : null} label="closed" tone="text-body" />
         </div>
       </header>
 
@@ -242,11 +245,12 @@ export function PositionsTable({
   );
 }
 
-/** Header readout: a zero is dimmed rather than coloured, so live counts carry the accent. */
-function Count({ n, label, tone }: { n: number; label: string; tone: string }) {
+/** Header readout: a zero is dimmed rather than coloured, so live counts carry
+ *  the accent. A null has not been counted yet and renders as an em dash. */
+function Count({ n, label, tone }: { n: number | null; label: string; tone: string }) {
   return (
     <span className="flex items-baseline gap-1.5">
-      <span className={`tabular font-mono text-[13px] font-bold ${n ? tone : "text-faint"}`}>{n}</span>
+      <span className={`tabular font-mono text-[13px] font-bold ${n ? tone : "text-faint"}`}>{n ?? "—"}</span>
       <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-faint">{label}</span>
     </span>
   );
