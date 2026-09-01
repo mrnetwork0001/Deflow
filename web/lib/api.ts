@@ -72,6 +72,11 @@ export interface Status {
   mode: string;
   market_open?: boolean;
   market_detail?: string;
+  /** ISO instant of the next session open, present while closed. The string
+   *  form in market_detail carries a -04:00 offset that makes every non-US
+   *  reader do timezone arithmetic; this field exists so the UI can render a
+   *  countdown and the viewer's own local time instead. */
+  market_reopens_at?: string | null;
   working_orders?: WorkingOrder[];
   simulated_market_data: boolean;
   universe: string[];

@@ -49,6 +49,53 @@ function SmallStat({
   );
 }
 
+function ReopenCountdown({ iso, detail }: { iso?: string | null; detail?: string }) {
+  // The backend publishes the reopen instant; older deployments only embed it
+  // inside the detail string, so parse that as a fallback.
+  const parsed =
+    iso ?? detail?.match(/\d{4}-\d{2}-\d{2}T[0-9:.]+(?:[+-]\d{2}:\d{2}|Z)?/)?.[0];
+  const target = parsed ? new Date(parsed).getTime() : NaN;
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    // Tick every second only while a valid countdown is on screen.
+    if (!Number.isFinite(target)) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [target]);
+
+  if (!Number.isFinite(target)) {
+    // No parseable instant: the raw detail beats showing nothing.
+    return detail ? <span className="font-mono text-[10.5px] text-faint">{detail}</span> : null;
+  }
+
+  const remaining = Math.max(0, target - now);
+  const h = Math.floor(remaining / 3_600_000);
+  const m = Math.floor((remaining % 3_600_000) / 60_000);
+  const sec = Math.floor((remaining % 60_000) / 1000);
+  // toLocaleString with no arguments resolves to the BROWSER's locale and
+  // timezone: a reader in Lagos sees WAT, one in Milan sees CEST -- nobody
+  // converts a -04:00 offset in their head.
+  const local = new Date(target).toLocaleString(undefined, {
+    weekday: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  });
+  return (
+    <span className="tabular font-mono text-[10.5px] text-faint">
+      {remaining === 0 ? (
+        "opening — waiting for the desk to confirm"
+      ) : (
+        <>
+          opens in{" "}
+          <span className="text-warn">
+            {h > 0 ? `${h}h ` : ""}{m}m {h === 0 ? `${sec}s ` : ""}
+          </span>
+          · {local}
+        </>
+      )}
+    </span>
+  );
+}
+
 function StatusItem({ dot, label, title }: { dot: string; label: string; title: string }) {
   return (
     <span
@@ -259,11 +306,9 @@ export default function Dashboard() {
             The desk is idle — no cycles run and no orders are placed until the
             next session. Positions and P&L below are last marks.
           </span>
-          {status.market_detail && (
-            <span className="ml-auto font-mono text-[10.5px] text-faint">
-              {status.market_detail}
-            </span>
-          )}
+          <span className="ml-auto">
+            <ReopenCountdown iso={status.market_reopens_at} detail={status.market_detail} />
+          </span>
         </div>
       )}
 

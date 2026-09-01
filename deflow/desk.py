@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
@@ -736,10 +737,20 @@ class TradingDesk:
     def status(self) -> Dict[str, Any]:
         chain = self.ledger.verify()
         is_open, why = self._market_state()
+        # The reopen instant, machine-readable. The detail string embeds it as
+        # "closed until 2026-09-02T09:30:00-04:00", which forces every reader
+        # to do timezone arithmetic in their head; a dashboard can render a
+        # countdown and the viewer's local time from the timestamp alone.
+        reopens = None
+        if not is_open:
+            m = re.search(r"\d{4}-\d{2}-\d{2}T[0-9:.]+(?:[+-]\d{2}:\d{2}|Z)?", why)
+            if m:
+                reopens = m.group(0)
         return {
             "mode": self.settings.mode,
             "market_open": is_open,
             "market_detail": why,
+            "market_reopens_at": reopens,
             "simulated_market_data": getattr(self.provider, "simulated", True),
             "universe": self.settings.universe,
             "cycles_run": self.cycles,
