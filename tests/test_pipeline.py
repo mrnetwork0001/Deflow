@@ -1227,7 +1227,7 @@ def test_profit_target_tightens_toward_expiry():
 
     assert profit_target(45) == pytest.approx(0.75)
     assert profit_target(7) == pytest.approx(0.40)
-    for a, b in zip(range(7, 40), range(8, 41)):
+    for a, b in zip(range(7, 40), range(8, 41), strict=True):
         assert profit_target(a) <= profit_target(b) + 1e-9, "target must not rise as expiry nears"
 
 
