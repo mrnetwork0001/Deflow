@@ -1,0 +1,54 @@
+# systemd unit for the Deflow desk.
+#
+#   sudo cp deploy/deflow.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now deflow
+#   journalctl -u deflow -f
+#
+# The desk is a long-running process, not a request handler: it holds a
+# scheduler thread, marks the book, and appends to a hash chain on disk. That
+# is precisely what a serverless platform cannot host, and why this exists.
+
+[Unit]
+Description=Deflow — autonomous multi-agent options desk
+Documentation=https://github.com/mrnetwork0001/Deflow
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deflow
+Group=deflow
+WorkingDirectory=/opt/deflow
+
+# Secrets live here, root-readable only. Never in the unit file, which is
+# world-readable.
+EnvironmentFile=/opt/deflow/.env
+Environment=DEFLOW_HOST=127.0.0.1
+Environment=DEFLOW_PORT=8000
+Environment=DEFLOW_NO_BOOTSTRAP=1
+Environment=PATH=/opt/deflow/.venv/bin:/usr/local/bin:/usr/bin:/bin
+
+ExecStart=/opt/deflow/.venv/bin/python /opt/deflow/main.py
+
+Restart=always
+RestartSec=10
+# Never give up restarting: an options position left unmanaged over a weekend
+# is worse than a noisy restart loop.
+StartLimitIntervalSec=0
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=deflow
+
+# Hardening. The desk needs to write only its own data directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/deflow/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
