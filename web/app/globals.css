@@ -32,6 +32,10 @@ body {
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .live-dot { animation: pulse-dot 2s ease-in-out infinite; }
 
+/* Fills the active step of the agent pipeline over its dwell time, so the rail
+   reads as a proposal advancing through stages rather than a tab strip. */
+@keyframes stepFill { from { width: 0%; } to { width: 100%; } }
+
 /* Slow diagonal sheen across the hero decision card, so it reads as a live
    surface between trading cycles rather than a screenshot. */
 @keyframes cardSweep {
