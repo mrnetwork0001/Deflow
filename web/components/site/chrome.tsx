@@ -45,6 +45,7 @@ export function Wordmark({ height = 30, className = "" }: { height?: number; cla
 
 const NAV = [
   ["The problem", "#problem"],
+  ["The edge", "#edge"],
   ["The desk", "#desk"],
   ["Risk gate", "#gate"],
   ["Auditability", "#audit"],

@@ -1,81 +1,120 @@
 "use client";
 
-import { Card } from "./chrome";
-import { Mark } from "./chrome";
+import { Section } from "./chrome";
 import { PayoffDiagram } from "./visuals";
 
 export function Thesis() {
   return (
-    <section className="relative overflow-hidden border-t border-ink-line px-6 py-28">
-      <div aria-hidden className="grid-bg pointer-events-none absolute inset-0 opacity-30" />
-      <div className="relative mx-auto max-w-content">
-        <div className="flex justify-center"><Mark size={40} /></div>
+    <Section
+      id="edge"
+      eyebrow="The edge"
+      title={
+        <>
+          Probability of profit is not an edge.
+          <br />
+          <span className="text-gain">Expectancy is.</span>
+        </>
+      }
+      lead="Under the risk-neutral measure every vertical spread is worth exactly what it costs. Score a candidate at its own implied volatility and every trade prices at zero — the correct answer, and a useless one. So Deflow scores each candidate twice, and trades the difference."
+    >
+      {/* ── the two measures, side by side ─────────────────────────────── */}
+      <div className="grid gap-px overflow-hidden rounded-xl border border-ink-line bg-ink-line md:grid-cols-2">
+        <Measure
+          label="Risk-neutral"
+          vol="implied volatility"
+          value="≈ $0"
+          tone="info"
+          note="What the market says it is worth. Zero expected value, as arbitrage requires — which is why scoring this way ranks every candidate identically."
+        />
+        <Measure
+          label="Physical"
+          vol="forecast realised volatility"
+          value="the edge"
+          tone="gain"
+          note="What it is worth if the underlying keeps moving the way it actually has been. Jump-robust, so one earnings gap cannot masquerade as a regime."
+        />
+      </div>
 
-        <p className="mx-auto mt-10 max-w-3xl text-center font-sans text-[26px] font-medium leading-[1.4] tracking-tight text-muted sm:text-[32px]">
-          Under the risk-neutral measure, <span className="text-body">every vertical spread is
-          worth exactly what it costs</span>. Score a candidate at its own implied volatility and
-          every trade prices at zero — the correct answer, and a useless one.
-        </p>
+      <p className="mt-5 text-center font-sans text-[14.5px] leading-relaxed text-muted">
+        The dollar gap between those two numbers <span className="text-body">is</span> the variance
+        risk premium — and it is the only reason to put the trade on.
+      </p>
 
-        <p className="mx-auto mt-8 max-w-3xl text-center font-sans text-[26px] font-medium leading-[1.4] tracking-tight text-muted sm:text-[32px]">
-          So Deflow scores each candidate <span className="text-gain">twice</span>, and trades the
-          difference.
-        </p>
+      {/* ── what that rules out ────────────────────────────────────────── */}
+      <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
+        <div className="rounded-xl border border-loss/25 bg-ink-card p-7">
+          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-loss">
+            A trade Deflow refuses
+          </div>
+          <h3 className="mt-4 font-sans text-[19px] font-semibold leading-snug text-body">
+            79% of the time you keep $320. The other 21% you lose $1,680.
+          </h3>
 
-        <div className="mx-auto mt-16 grid max-w-4xl gap-4 lg:grid-cols-[1.2fr_1fr]">
-          <Card className="p-6">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-ink-line font-mono text-[10px] uppercase tracking-[0.12em] text-faint">
-                  <th className="pb-3 font-medium">Measure</th>
-                  <th className="pb-3 font-medium">Volatility</th>
-                  <th className="pb-3 font-medium">What it tells you</th>
-                </tr>
-              </thead>
-              <tbody className="font-sans text-[13px]">
-                <tr className="border-b border-ink-line/60">
-                  <td className="py-4 pr-4 font-mono text-[12px] text-info">risk-neutral</td>
-                  <td className="py-4 pr-4 text-muted">implied</td>
-                  <td className="py-4 text-muted">What the market says it is worth — ≈ 0 EV, as arbitrage requires</td>
-                </tr>
-                <tr>
-                  <td className="py-4 pr-4 font-mono text-[12px] text-gain">physical</td>
-                  <td className="py-4 pr-4 text-muted">forecast realised</td>
-                  <td className="py-4 text-muted">What it is worth if the stock keeps moving as it has been</td>
-                </tr>
-              </tbody>
-            </table>
-            <p className="mt-5 border-t border-ink-line pt-5 font-sans text-[13.5px] leading-[1.7] text-muted">
-              The dollar gap between those two rows <span className="text-body">is</span> the
-              variance risk premium. Anything with non-positive expectancy under the physical
-              measure is refused — <span className="text-body">however high its win rate</span>.
+          <dl className="mt-6 space-y-px overflow-hidden rounded-lg border border-ink-line bg-ink-line font-mono text-[12px]">
+            <Row k="probability of profit" v="79%" tone="text-gain" />
+            <Row k="you keep" v="$320" tone="text-gain" sub="four times in five" />
+            <Row k="you lose" v="$1,680" tone="text-loss" sub="the fifth" />
+            <Row k="expected value" v="−$112" tone="text-loss" strong />
+          </dl>
+
+          <p className="mt-6 font-sans text-[13.5px] leading-[1.75] text-muted">
+            A high win rate is not an edge. It is a way to lose money slowly and feel good about
+            it. Anything with non-positive expectancy under the physical measure is refused —{" "}
+            <span className="text-body">however high its probability of profit</span>.
+          </p>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-ink-line bg-ink-raised/60 p-7">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+              What it will trade
+            </div>
+            <p className="mt-4 font-sans text-[13.5px] leading-[1.75] text-muted">
+              Defined-risk structures only. Every short leg sits inside a long of the same right, so
+              the worst case is a property of the geometry rather than a promise — and the wing is
+              what makes the maximum loss knowable before the order is sent.
             </p>
-          </Card>
-
-          <Card className="flex flex-col p-6">
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-loss">
-              A trade Deflow refuses
-            </div>
-            <div className="mt-5 space-y-3 font-mono text-[12px]">
-              {[
-                ["probability of profit", "79%", "text-gain"],
-                ["you keep", "$320 · 4 times in 5", "text-gain"],
-                ["you lose", "$1,680 · the fifth", "text-loss"],
-              ].map(([k, v, tone]) => (
-                <div key={k} className="flex items-baseline justify-between gap-3">
-                  <span className="text-faint">{k}</span>
-                  <span className={`tabular font-semibold ${tone}`}>{v}</span>
-                </div>
-              ))}
-              <div className="flex items-baseline justify-between gap-3 border-t border-ink-line pt-3">
-                <span className="text-faint">expected value</span>
-                <span className="tabular text-[17px] font-bold text-loss">−$112</span>
-              </div>
-            </div>
-            <PayoffDiagram credit className="mt-6 w-full" />
-          </Card>
+          </div>
+          <div className="mt-6">
+            <PayoffDiagram credit className="w-full" />
+          </div>
         </div>
       </div>
-    </section>
+    </Section>
+  );
+}
+
+function Measure({
+  label, vol, value, note, tone,
+}: { label: string; vol: string; value: string; note: string; tone: "info" | "gain" }) {
+  const text = tone === "gain" ? "text-gain" : "text-info";
+  return (
+    <div className="bg-ink-card p-7">
+      <div className={`font-mono text-[10px] uppercase tracking-[0.14em] ${text}`}>{label}</div>
+      <div className="mt-1.5 font-mono text-[11.5px] text-faint">{vol}</div>
+      <div className={`mt-6 font-mono text-[30px] font-bold leading-none ${text}`}>{value}</div>
+      <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-faint">
+        expected value
+      </div>
+      <p className="mt-5 font-sans text-[13px] leading-[1.7] text-muted">{note}</p>
+    </div>
+  );
+}
+
+function Row({
+  k, v, tone, sub, strong = false,
+}: { k: string; v: string; tone: string; sub?: string; strong?: boolean }) {
+  return (
+    <div
+      className={`flex items-baseline justify-between gap-4 bg-ink-card px-4 ${
+        strong ? "py-3.5" : "py-2.5"
+      }`}
+    >
+      <dt className="text-faint">{k}</dt>
+      <dd className={`tabular text-right ${tone} ${strong ? "text-[17px] font-bold" : "font-semibold"}`}>
+        {v}
+        {sub && <span className="ml-2 font-normal text-faint">· {sub}</span>}
+      </dd>
+    </div>
   );
 }
