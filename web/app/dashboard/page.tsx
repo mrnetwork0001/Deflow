@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { EventStream } from "@/components/EventStream";
+import { Mark } from "@/components/site/chrome";
 import { PositionsTable } from "@/components/PositionsTable";
 import { RegimeGrid } from "@/components/RegimeGrid";
 import { RiskGatePanel } from "@/components/RiskGatePanel";
@@ -77,10 +79,19 @@ export default function Dashboard() {
     <main className="mx-auto max-w-[1600px] p-4 sm:p-6">
       {/* ---- Header ---------------------------------------------------- */}
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-lg font-bold tracking-tight text-gain">DEFLOW</h1>
-          <span className="text-[11px] text-muted">autonomous multi-agent options desk</span>
-        </div>
+        {/* The wordmark is the way back to the marketing site, which is where
+            people expect a logo to take them. */}
+        <Link href="/" className="group flex items-center gap-2.5" aria-label="Deflow home">
+          <Mark size={26} />
+          <span className="flex items-baseline gap-3">
+            <span className="text-lg font-bold tracking-tight text-gain transition-opacity group-hover:opacity-80">
+              DEFLOW
+            </span>
+            <span className="hidden text-[11px] text-muted sm:inline">
+              autonomous multi-agent options desk
+            </span>
+          </span>
+        </Link>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={live ? "gain" : "warn"}>
             {live ? "Alpaca paper trading" : "simulation — no credentials"}
