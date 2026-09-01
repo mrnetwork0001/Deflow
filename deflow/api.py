@@ -455,6 +455,125 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
             "points": points[-500:],
         }
 
+    @app.get("/api/pnl-card")
+    def pnl_card(date_str: Optional[str] = Query(None, alias="date")) -> Dict[str, Any]:
+        """One trading day, summarised for a shareable P&L card.
+
+        For today, the money comes from the broker (equity against its own
+        prior close) whenever the broker is the authority; for past days it is
+        reconstructed from the ledger's cycle_end snapshots and labelled with
+        the basis those snapshots are on. The card also carries the ledger head
+        hash for its day -- the point of the desk is that the number on the
+        picture can be checked against a chain anyone can verify.
+        """
+        try:
+            day = (
+                datetime.strptime(date_str, "%Y-%m-%d").date()
+                if date_str
+                else datetime.now(timezone.utc).date()
+            )
+        except ValueError:
+            raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
+
+        prefix = day.isoformat()
+        entries = [r for r in desk.ledger.read() if str(r.get("at", "")).startswith(prefix)]
+
+        cycles = sum(1 for r in entries if r.get("event") == "cycle_end")
+        # Same definition as /api/refusals -- one source of truth for what
+        # counts as the desk saying no.
+        refusal_tests = {
+            "analyst_view": lambda p: not p.get("tradeable", True),
+            "reasoning_choice": lambda p: p.get("index") == -1,
+            "audit": lambda p: not p.get("passed", True),
+            "risk_gate": lambda p: not p.get("approved", True),
+        }
+        refusals = 0
+        vetoes = 0
+        fills: List[Dict[str, Any]] = []
+        submitted = 0
+        perf_points: List[Dict[str, Any]] = []
+        last_hash = ""
+        for r in entries:
+            event = r.get("event")
+            payload = r.get("payload") or {}
+            last_hash = r.get("hash") or last_hash
+            if event == "risk_gate" and not payload.get("approved"):
+                vetoes += 1
+            test = refusal_tests.get(event)
+            if test is not None and test(payload):
+                refusals += 1
+            if event == "execution" and payload.get("submitted"):
+                submitted += 1
+            if event == "fill" and payload.get("outcome") == "filled":
+                fills.append({
+                    "symbol": payload.get("symbol"),
+                    "filled_price": payload.get("filled_price"),
+                })
+            if event == "exit_fill" and payload.get("outcome") == "closed":
+                fills.append({
+                    "position_id": payload.get("position_id"),
+                    "realized_pnl": payload.get("realized_pnl"),
+                    "closed": True,
+                })
+            if event == "cycle_end":
+                perf = payload.get("performance") or {}
+                if "equity" in perf:
+                    perf_points.append({"at": r.get("at"), "equity": float(perf["equity"])})
+
+        today = datetime.now(timezone.utc).date()
+        card: Dict[str, Any] = {
+            "date": prefix,
+            "cycles": cycles,
+            "orders_submitted": submitted,
+            "fills": fills,
+            "vetoes": vetoes,
+            "ledger_entries_for_day": len(entries),
+            "ledger_head": last_hash,
+            "is_today": day == today,
+        }
+
+        # Refusal totals live in the refusals feed, not per-event here; count
+        # what the day's entries actually carry rather than guessing.
+        card["refusals"] = refusals
+
+        truth = _broker_truth(desk) if day == today else None
+        if truth is not None:
+            # Alpaca's last_equity is ITS OWN previous close, which makes the
+            # day P&L definitionally the broker's, not ours.
+            rest = desk.executor.rest
+            last_close: Optional[float] = None
+            if rest is not None:
+                account = rest.get_account()
+                if account.ok and isinstance(account.data, dict):
+                    try:
+                        last_close = float(account.data.get("last_equity"))
+                    except (TypeError, ValueError):
+                        last_close = None
+            equity = truth["equity"]
+            base = last_close if last_close else desk.portfolio.starting_equity
+            card.update({
+                "basis": "alpaca",
+                "equity": equity,
+                "day_pnl": round(equity - base, 2),
+                "day_return_pct": round((equity / base - 1.0) * 100.0, 4) if base else 0.0,
+            })
+            return card
+
+        if perf_points:
+            first, last = perf_points[0]["equity"], perf_points[-1]["equity"]
+            card.update({
+                "basis": "deflow-mid",
+                "equity": last,
+                "day_pnl": round(last - first, 2),
+                "day_return_pct": round((last / first - 1.0) * 100.0, 4) if first else 0.0,
+                "note": "reconstructed from the desk's own cycle snapshots (quote-mid basis)",
+            })
+            return card
+
+        card.update({"basis": "none", "equity": None, "day_pnl": None, "day_return_pct": None,
+                     "note": "no ledger activity on this date"})
+        return card
+
     @app.get("/api/refusals")
     def refusals(limit: int = Query(40, ge=1, le=200)) -> Dict[str, Any]:
         """Every trade the desk declined, and why.

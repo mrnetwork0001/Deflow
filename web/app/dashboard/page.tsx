@@ -11,6 +11,7 @@ import { RegimeGrid } from "@/components/RegimeGrid";
 import { RiskGatePanel } from "@/components/RiskGatePanel";
 import { SectionRail } from "@/components/SectionRail";
 import { Badge, Meter, Panel } from "@/components/ui";
+import { PnlCard } from "@/components/PnlCard";
 import {
   AnalystView, Position, Status, getJSON, money, postJSON, pct, signedMoney, signedPct,
 } from "@/lib/api";
@@ -301,6 +302,7 @@ export default function Dashboard() {
               right={
                 perf ? (
                   <div className="flex items-center gap-3">
+                    <PnlCard />
                     {/* Which basis these figures are on. A money number with no
                         stated source is the thing this project argues against,
                         and the two bases genuinely disagree: on 2026-09-01 our
