@@ -198,6 +198,7 @@ class AlpacaClient:
         expiration_lte: Optional[date] = None,
         strike_gte: Optional[float] = None,
         strike_lte: Optional[float] = None,
+        page_token: Optional[str] = None,
     ) -> ApiResult:
         """Full chain snapshot with NBBO quotes, Greeks and implied vol.
 
@@ -206,6 +207,8 @@ class AlpacaClient:
         can cross-check rather than trust.
         """
         params: Dict[str, Any] = {"feed": "indicative", "limit": 1000}
+        if page_token:
+            params["page_token"] = page_token
         if expiration_gte:
             params["expiration_date_gte"] = expiration_gte.isoformat()
         if expiration_lte:

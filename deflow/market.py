@@ -228,22 +228,41 @@ class AlpacaMarketData:
         if spot <= 0:
             return []
 
-        result = self.client.get_option_chain(
-            symbol,
-            expiration_gte=today + timedelta(days=min_dte),
-            expiration_lte=today + timedelta(days=max_dte),
-            # Only strikes within +/-20% are ever structurally useful to us.
-            strike_gte=spot * 0.80,
-            strike_lte=spot * 1.20,
-        )
-        if not result.ok:
-            log.warning("No option chain for %s: %s", symbol, result.error)
+        # Paginate. The endpoint caps at 1000 contracts per page, and on a
+        # name with daily expiries -- SPY, QQQ -- that single page is consumed
+        # by the nearest few dates before reaching the 21-45 DTE window the
+        # desk actually trades. Taking only the first page meant SPY offered
+        # one usable expiry and QQQ none, so the two most liquid symbols in
+        # the universe were effectively untradeable while appearing merely
+        # unattractive.
+        snapshots: Dict[str, Any] = {}
+        token: Optional[str] = None
+        for _ in range(12):  # 12k contracts is far beyond any single name
+            result = self.client.get_option_chain(
+                symbol,
+                expiration_gte=today + timedelta(days=min_dte),
+                expiration_lte=today + timedelta(days=max_dte),
+                # Only strikes within +/-20% are ever structurally useful.
+                strike_gte=spot * 0.80,
+                strike_lte=spot * 1.20,
+                page_token=token,
+            )
+            if not result.ok:
+                log.warning("No option chain for %s: %s", symbol, result.error)
+                break
+            payload = result.data or {}
+            snapshots.update(payload.get("snapshots", {}))
+            token = payload.get("next_page_token")
+            if not token:
+                break
+
+        if not snapshots:
             return []
 
         contract_meta = self._contract_meta(symbol, min_dte, max_dte, spot)
 
         quotes: List[OptionQuote] = []
-        for occ, snap in (result.data or {}).get("snapshots", {}).items():
+        for occ, snap in snapshots.items():
             quote = snap.get("latestQuote") or {}
             bid, ask = float(quote.get("bp", 0.0) or 0.0), float(quote.get("ap", 0.0) or 0.0)
             if bid <= 0 or ask <= 0:

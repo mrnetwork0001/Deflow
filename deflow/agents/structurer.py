@@ -32,6 +32,7 @@ from risk_gate import (
 )
 
 from ..greeks import black_scholes, years_to_expiry
+from .. import events
 from ..models import CONTRACT_MULTIPLIER, Leg, OptionQuote, Regime, SpreadProposal, Strategy
 from ..montecarlo import stress_test
 from .analyst import AnalystView
@@ -106,6 +107,8 @@ class OptionsStructurer:
     def __init__(self, provider: Any, gate: DeterministicRiskGate) -> None:
         self.provider = provider
         self.gate = gate
+        # Populated on each build(); read by the desk for the ledger.
+        self.event_risk = events.EventRisk(False)
 
     # -- chain preparation --------------------------------------------------
 
@@ -248,7 +251,31 @@ class OptionsStructurer:
             log.info("%s: no contracts cleared the liquidity filter", snapshot.symbol)
             return []
 
+        # Read the volatility term structure for a catalyst the market has
+        # already priced. Selling premium that expires AFTER an event means
+        # being short the gap, and the credit looks generous precisely because
+        # the move is coming -- that is being paid fairly for a real risk, not
+        # harvesting a variance premium, which is the only thing this desk is
+        # trying to do.
+        self.event_risk = events.detect(chain, snapshot.price)
         buckets = self._by_expiry(chain)
+        if self.event_risk.detected and strategy.is_credit:
+            safe = {
+                expiry: quotes
+                for expiry, quotes in buckets.items()
+                if not events.expiry_is_exposed(self.event_risk, expiry)
+            }
+            dropped = len(buckets) - len(safe)
+            if dropped:
+                log.info(
+                    "%s: %d expiries span a priced-in event (%s); short premium restricted "
+                    "to expiries before it",
+                    snapshot.symbol, dropped, self.event_risk.summary(),
+                )
+            buckets = safe
+            if not buckets:
+                return []
+
         # Restrict to the 21-45 DTE window when the chain offers it. Inside a
         # week or two, gamma dominates and the 3-DTE exit guard leaves almost
         # no room for the trade to work; scoring alone was not reliably keeping

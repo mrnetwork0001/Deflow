@@ -104,7 +104,12 @@ class AdversarialRiskAuditor:
     def __init__(self, paths: int = DEFAULT_PATHS) -> None:
         self.paths = paths
 
-    def audit(self, proposal: SpreadProposal, realised_vol: float) -> AuditReport:
+    def audit(
+        self,
+        proposal: SpreadProposal,
+        realised_vol: float,
+        implied_move: float = 0.0,
+    ) -> AuditReport:
         objections: List[Objection] = []
 
         # --- 1. Re-derive the Greeks from scratch --------------------------
@@ -122,8 +127,18 @@ class AdversarialRiskAuditor:
         # Physical (realised vol): what it is worth if the underlying keeps
         # moving the way it has actually been moving. The gap between them is
         # the variance risk premium, in dollars.
-        risk_neutral = stress_test(proposal, paths=self.paths)
-        physical = stress_test(proposal, paths=self.paths, vol_override=max(realised_vol, 0.03))
+        # When the term structure prices a catalyst, the calm-market jump
+        # assumption is the wrong one to stress against: the market is telling
+        # us to expect a move several times larger than a routine gap. Feeding
+        # that through widens the tail the auditor sees rather than letting it
+        # score an event trade as if nothing were coming.
+        jump = {"jump_mean": -abs(implied_move), "jump_stdev": max(implied_move, 0.06),
+                "jump_intensity": 6.0} if implied_move > 0.02 else {}
+
+        risk_neutral = stress_test(proposal, paths=self.paths, **jump)
+        physical = stress_test(
+            proposal, paths=self.paths, vol_override=max(realised_vol, 0.03), **jump
+        )
         variance_edge = physical.mean_pnl - risk_neutral.mean_pnl
 
         # --- 3. Objections ---------------------------------------------------

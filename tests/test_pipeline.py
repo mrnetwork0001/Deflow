@@ -1126,3 +1126,91 @@ def test_working_orders_survive_a_restart(tmp_path, monkeypatch):
     assert "w1" in after.pending
     assert after.pending["w1"].order_id == "ord-9"
     assert after.capital_at_risk == pytest.approx(p.max_loss)
+
+
+# --------------------------------------------------------------------------
+# Event risk from the term structure
+# --------------------------------------------------------------------------
+
+def _chain_with_term(structure, spot=100.0):
+    """Build a chain whose ATM implied vol follows `structure` per expiry."""
+    from deflow.models import OptionQuote, occ_symbol
+
+    out = []
+    for offset, iv in structure:
+        exp = date.today() + timedelta(days=offset)
+        for k in range(int(spot) - 6, int(spot) + 7):
+            for right in ("call", "put"):
+                out.append(OptionQuote(
+                    symbol=occ_symbol("TST", exp, right, float(k)),
+                    bid=1.0, ask=1.1, underlying_price=spot, strike=float(k),
+                    right=right, expiry=exp, implied_vol=iv, open_interest=500, volume=50,
+                ))
+    return out
+
+
+def test_normal_term_structure_reports_no_event():
+    from deflow import events
+
+    chain = _chain_with_term([(10, 0.22), (17, 0.23), (31, 0.24), (45, 0.25)])
+    risk = events.detect(chain, 100.0)
+    assert not risk.detected, risk.summary()
+
+
+def test_inverted_front_expiry_is_flagged():
+    """Front vol well above the next expiry means a catalyst sits before it."""
+    from deflow import events
+
+    chain = _chain_with_term([(10, 0.55), (17, 0.24), (31, 0.24), (45, 0.25)])
+    risk = events.detect(chain, 100.0)
+    assert risk.detected
+    assert risk.front_expiry == date.today() + timedelta(days=10)
+    assert risk.implied_move > 0
+
+
+def test_short_dated_contracts_do_not_trigger_a_false_event():
+    """Sub-week options carry inflated ATM vol for structural reasons.
+
+    Including them made every symbol in the universe report an event.
+    """
+    from deflow import events
+
+    chain = _chain_with_term([(1, 0.90), (2, 0.80), (10, 0.22), (17, 0.23), (31, 0.24)])
+    assert not events.detect(chain, 100.0).detected
+
+
+def test_expiries_spanning_the_event_are_identified():
+    from deflow import events
+
+    chain = _chain_with_term([(10, 0.55), (17, 0.24), (31, 0.24)])
+    risk = events.detect(chain, 100.0)
+    assert events.expiry_is_exposed(risk, date.today() + timedelta(days=10))
+    assert events.expiry_is_exposed(risk, date.today() + timedelta(days=31))
+    assert not events.expiry_is_exposed(risk, date.today() + timedelta(days=3))
+
+
+def test_no_event_exposes_nothing():
+    from deflow import events
+
+    risk = events.detect(_chain_with_term([(10, 0.22), (31, 0.23)]), 100.0)
+    assert not events.expiry_is_exposed(risk, date.today() + timedelta(days=31))
+
+
+def test_a_thin_chain_never_claims_an_event():
+    from deflow import events
+
+    assert not events.detect([], 100.0).detected
+    assert not events.detect(_chain_with_term([(10, 0.9)]), 100.0).detected
+    assert not events.detect(_chain_with_term([(10, 0.9), (17, 0.2)]), 0.0).detected
+
+
+def test_event_widens_the_simulated_tail():
+    """The auditor must stress an event trade at the move being priced, not a
+    calm-market gap."""
+    from deflow.montecarlo import stress_test
+
+    p = _spread(contracts=4)
+    calm = stress_test(p, paths=3000)
+    shocked = stress_test(p, paths=3000, jump_intensity=6.0, jump_mean=-0.08, jump_stdev=0.10)
+    assert shocked.cvar_05 <= calm.cvar_05, "an event must not look safer than calm markets"
+    assert shocked.prob_max_loss >= calm.prob_max_loss

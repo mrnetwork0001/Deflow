@@ -130,6 +130,9 @@ def stress_test(
     paths: int = DEFAULT_PATHS,
     seed: int = 20260904,
     vol_override: float | None = None,
+    jump_intensity: float = JUMP_INTENSITY,
+    jump_mean: float = JUMP_MEAN,
+    jump_stdev: float = JUMP_STDEV,
 ) -> StressResult:
     """Run `paths` jump-diffusion scenarios and summarise terminal P&L.
 
@@ -152,7 +155,8 @@ def stress_test(
     entry_cash = proposal.net_premium * CONTRACT_MULTIPLIER * proposal.contracts
 
     terminals = simulate_terminal_prices(
-        proposal.underlying_price, sigma, proposal.dte, paths, seed=seed
+        proposal.underlying_price, sigma, proposal.dte, paths, seed=seed,
+        jump_intensity=jump_intensity, jump_mean=jump_mean, jump_stdev=jump_stdev,
     )
     # P&L = what the structure is worth at expiry, less what we paid for it
     # (a credit spread has negative entry_cash, so this adds the credit back).

@@ -271,6 +271,7 @@ class TradingDesk:
                 "count": len(candidates),
                 "strategy": candidates[0].proposal.strategy.value,
                 "candidates": [c.summary() for c in candidates],
+                "event_risk": self.structurer.event_risk.to_dict(),
             },
         )
 
@@ -300,8 +301,14 @@ class TradingDesk:
         proposal.source = choice.model
 
         # --- Stage 4: Adversarial audit ------------------------------------
-        audit = self.auditor.audit(proposal, realised_vol=view.snapshot.hv_forecast)
-        self._emit("audit", {"symbol": symbol, "proposal_id": proposal.proposal_id, **audit.to_dict()})
+        event = self.structurer.event_risk
+        audit = self.auditor.audit(
+            proposal,
+            realised_vol=view.snapshot.hv_forecast,
+            implied_move=event.implied_move,
+        )
+        self._emit("audit", {"symbol": symbol, "proposal_id": proposal.proposal_id,
+                             "event_risk": event.to_dict(), **audit.to_dict()})
 
         if not audit.passed:
             return SymbolOutcome(
