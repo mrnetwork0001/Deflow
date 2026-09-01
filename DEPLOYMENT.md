@@ -20,9 +20,20 @@ One origin, so **no CORS**, one process to supervise, and the ledger lives on a 
 
 ```bash
 ssh root@YOUR_VPS
+
+# No DNS yet? Deploy IP-first — the desk trades without a domain or a
+# certificate, and the domain can land afterwards without restarting it.
+curl -fsSL https://raw.githubusercontent.com/mrnetwork0001/Deflow/main/deploy/provision.sh \
+  | bash -s -- ip
+
+# Or, if DNS already resolves:
 curl -fsSL https://raw.githubusercontent.com/mrnetwork0001/Deflow/main/deploy/provision.sh \
   | bash -s -- usedeflow.xyz
 ```
+
+> **DNS is never on the critical path for trading.** A domain and TLS buy a
+> presentable URL; the agent needs neither. Deploy on the IP, start earning
+> P&L, and attach the domain whenever your registrar is available.
 
 That installs nginx, Python, **Alpaca's official CLI** (Go 1.24 — the CLI will not build on 1.23),
 `uv` for the MCP server, a hardened `systemd` unit, and a firewall. It stops before touching your
@@ -35,19 +46,20 @@ nano /opt/deflow/.env          # ALPACA_API_KEY, ALPACA_SECRET_KEY, FEATHERLESS_
                                # leave DEFLOW_DRY_RUN=false so it actually trades
 ```
 
-**DNS** — at Namecheap, set two A records to your VPS IP:
+**DNS, whenever the registrar is available** — set two A records to your VPS IP:
 
 | Type | Host | Value |
 |---|---|---|
 | A | `@` | `YOUR_VPS_IP` |
 | A | `www` | `YOUR_VPS_IP` |
 
-Once DNS resolves:
+Once DNS resolves, switch nginx from the IP config to the domain one and get a
+certificate. The desk keeps running throughout — nginx sits in front of it:
 
 ```bash
+cp /opt/deflow/deploy/nginx.conf /etc/nginx/sites-available/deflow
+nginx -t && systemctl reload nginx
 certbot --nginx -d usedeflow.xyz -d www.usedeflow.xyz
-systemctl start deflow
-journalctl -u deflow -f
 ```
 
 Verify:

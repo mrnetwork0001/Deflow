@@ -9,7 +9,10 @@
 
 set -euo pipefail
 
-DOMAIN="${1:-usedeflow.xyz}"
+# Pass a domain to configure it, or "ip" to deploy without DNS. DNS and TLS
+# are needed for a presentable URL, not for the desk to trade -- so a registrar
+# outage should never be what stops an agent being live at the market open.
+DOMAIN="${1:-ip}"
 APP_DIR=/opt/deflow
 REPO=https://github.com/mrnetwork0001/Deflow.git
 GO_VERSION=1.24.0
@@ -63,7 +66,9 @@ if [[ ! -f "$APP_DIR/.env" ]]; then
     echo
     echo "DEFLOW_HOST=127.0.0.1"
     echo "DEFLOW_PORT=8000"
-    echo "DEFLOW_CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN}"
+    if [[ "$DOMAIN" != "ip" ]]; then
+      echo "DEFLOW_CORS_ORIGINS=https://${DOMAIN},https://www.${DOMAIN}"
+    fi
     echo "DEFLOW_NO_BOOTSTRAP=1"
   } >> "$APP_DIR/.env"
 fi
@@ -75,11 +80,18 @@ cp "$APP_DIR/deploy/deflow.service" /etc/systemd/system/deflow.service
 systemctl daemon-reload
 systemctl enable deflow >/dev/null
 
-say "Configuring nginx for ${DOMAIN}"
-sed "s/usedeflow\.xyz/${DOMAIN}/g" "$APP_DIR/deploy/nginx.conf" > /etc/nginx/sites-available/deflow
+if [[ "$DOMAIN" == "ip" ]]; then
+  say "Configuring nginx for direct IP access (no DNS yet)"
+  cp "$APP_DIR/deploy/nginx-ip.conf" /etc/nginx/sites-available/deflow
+else
+  say "Configuring nginx for ${DOMAIN}"
+  sed "s/usedeflow\.xyz/${DOMAIN}/g" "$APP_DIR/deploy/nginx.conf" > /etc/nginx/sites-available/deflow
+fi
 ln -sf /etc/nginx/sites-available/deflow /etc/nginx/sites-enabled/deflow
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
+
+SERVER_IP=$(curl -fsS https://api.ipify.org 2>/dev/null || echo YOUR_IP)
 
 say "Firewall"
 ufw allow OpenSSH >/dev/null 2>&1 || true
@@ -96,13 +108,18 @@ cat <<NEXT
      Set ALPACA_API_KEY, ALPACA_SECRET_KEY, FEATHERLESS_API_KEY.
      Leave DEFLOW_DRY_RUN=false so the desk actually trades.
 
-  2. Point ${DOMAIN} at this server (A record -> $(curl -fsS https://api.ipify.org 2>/dev/null || echo YOUR_IP)),
-     wait for DNS, then get a certificate:
-       certbot --nginx -d ${DOMAIN} -d www.${DOMAIN}
-
-  Then start it:
+  2. Start trading — this does NOT need DNS or a certificate:
        systemctl start deflow
        journalctl -u deflow -f
+     The dashboard is then live at  http://${SERVER_IP}/
+
+  3. Later, when your registrar is available, point the domain here
+     (A records @ and www -> ${SERVER_IP}), wait for DNS, then:
+       cp ${APP_DIR}/deploy/nginx.conf /etc/nginx/sites-available/deflow
+       sed -i "s/usedeflow.xyz/YOUR_DOMAIN/g" /etc/nginx/sites-available/deflow
+       nginx -t && systemctl reload nginx
+       certbot --nginx -d YOUR_DOMAIN -d www.YOUR_DOMAIN
+     No restart of the desk is required — nginx is in front of it.
 
   Verify:
        curl -s localhost:8000/api/health
