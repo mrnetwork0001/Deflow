@@ -19,7 +19,15 @@ from risk_gate import DeterministicRiskGate, PortfolioState
 
 from .config import DATA_DIR
 from .greeks import black_scholes, years_to_expiry
-from .models import CONTRACT_MULTIPLIER, OptionQuote, SpreadProposal, utcnow
+from .models import (
+    CONTRACT_MULTIPLIER,
+    Leg,
+    OptionQuote,
+    Regime,
+    SpreadProposal,
+    Strategy,
+    utcnow,
+)
 
 log = logging.getLogger("deflow.portfolio")
 
@@ -112,6 +120,77 @@ class OpenPosition:
         self.marked_at = utcnow()
         return self.unrealized_pnl
 
+    def to_state(self) -> Dict[str, Any]:
+        """Lossless snapshot for persistence.
+
+        Deliberately not `to_dict()`: that is the display shape, and it rounds.
+        Rebuilding a position from rounded strikes and premiums would shift its
+        computed max loss, and max loss is what every risk limit is measured
+        against.
+        """
+        return {
+            "proposal_id": self.proposal.proposal_id,
+            "symbol": self.proposal.symbol,
+            "strategy": self.proposal.strategy.value,
+            "contracts": self.proposal.contracts,
+            "underlying_price": self.proposal.underlying_price,
+            "iv_rank": self.proposal.iv_rank,
+            "regime": self.proposal.regime.value,
+            "thesis": self.proposal.thesis,
+            "source": self.proposal.source,
+            "proposed_at": self.proposal.proposed_at,
+            "legs": [
+                {
+                    "symbol": l.symbol, "right": l.right, "strike": l.strike,
+                    "expiry": l.expiry.isoformat(), "ratio": l.ratio,
+                    "price": l.price, "implied_vol": l.implied_vol,
+                    "half_spread": l.half_spread,
+                }
+                for l in self.proposal.legs
+            ],
+            "entry_premium": self.entry_premium,
+            "entry_at": self.entry_at,
+            "order_id": self.order_id,
+            "simulated": self.simulated,
+            "mark_premium": self.mark_premium,
+            "unrealized_pnl": self.unrealized_pnl,
+            "marked_at": self.marked_at,
+        }
+
+    @staticmethod
+    def from_state(d: Dict[str, Any]) -> "OpenPosition":
+        proposal = SpreadProposal(
+            symbol=d["symbol"],
+            strategy=Strategy(d["strategy"]),
+            legs=[
+                Leg(
+                    symbol=l["symbol"], right=l["right"], strike=float(l["strike"]),
+                    expiry=date.fromisoformat(l["expiry"]), ratio=int(l["ratio"]),
+                    price=float(l["price"]), implied_vol=float(l.get("implied_vol", 0.20)),
+                    half_spread=float(l.get("half_spread", 0.0)),
+                )
+                for l in d["legs"]
+            ],
+            contracts=int(d["contracts"]),
+            underlying_price=float(d["underlying_price"]),
+            thesis=d.get("thesis", ""),
+            iv_rank=float(d.get("iv_rank", 0.0)),
+            regime=Regime(d.get("regime", Regime.LOW_VOL_RANGE.value)),
+            proposed_at=d.get("proposed_at", ""),
+            proposal_id=d.get("proposal_id", ""),
+            source=d.get("source", "restored"),
+        )
+        return OpenPosition(
+            proposal=proposal,
+            entry_premium=float(d["entry_premium"]),
+            entry_at=d.get("entry_at", ""),
+            order_id=d.get("order_id", ""),
+            simulated=bool(d.get("simulated", False)),
+            mark_premium=float(d.get("mark_premium", 0.0)),
+            unrealized_pnl=float(d.get("unrealized_pnl", 0.0)),
+            marked_at=d.get("marked_at", ""),
+        )
+
     def to_dict(self) -> Dict[str, Any]:
         d = self.proposal.to_dict()
         d.update(
@@ -138,6 +217,23 @@ class ClosedPosition:
     realized_pnl: float
     reason: str
     closed_at: str = field(default_factory=utcnow)
+
+    def to_state(self) -> Dict[str, Any]:
+        return {
+            "position": self.position.to_state(),
+            "realized_pnl": self.realized_pnl,
+            "reason": self.reason,
+            "closed_at": self.closed_at,
+        }
+
+    @staticmethod
+    def from_state(d: Dict[str, Any]) -> "ClosedPosition":
+        return ClosedPosition(
+            position=OpenPosition.from_state(d["position"]),
+            realized_pnl=float(d["realized_pnl"]),
+            reason=d.get("reason", ""),
+            closed_at=d.get("closed_at", ""),
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -303,11 +399,15 @@ class Portfolio:
                 json.dumps(
                     {
                         "saved_at": utcnow(),
+                        "session_date": date.today().isoformat(),
                         "starting_equity": self.starting_equity,
                         "start_of_day_equity": self.start_of_day_equity,
                         "cash_pnl": self.cash_pnl,
-                        "open": [p.to_dict() for p in self.open.values()],
-                        "closed": [c.to_dict() for c in self.closed],
+                        # Lossless state for restore, plus the display shape so
+                        # the file stays readable by eye.
+                        "open": [p.to_state() for p in self.open.values()],
+                        "closed": [c.to_state() for c in self.closed],
+                        "open_readable": [p.to_dict() for p in self.open.values()],
                     },
                     indent=1,
                     default=str,
@@ -315,6 +415,64 @@ class Portfolio:
             )
         except OSError as exc:
             log.warning("Could not persist positions: %s", exc)
+
+    def load(self) -> Dict[str, Any]:
+        """Restore the book from disk. Called once, at startup.
+
+        Without this the desk forgot every open position on restart, and the
+        consequences compound: the exit guard cannot stop out or take profit on
+        a structure it does not know about; the risk gate sees an empty book
+        and authorises another six positions on top of the ones still live at
+        the broker; realised P&L resets to zero; and the daily drawdown
+        baseline the kill switch measures against moves to the wrong point.
+
+        A deploy, a crash or a reboot was enough to trigger all of it.
+
+        The start-of-day equity baseline is only carried over when the saved
+        session is today's -- otherwise the -3% kill switch would be measuring
+        against a previous day's opening balance.
+        """
+        if not self._path.exists():
+            return {"restored": 0, "detail": "no saved book"}
+
+        try:
+            saved = json.loads(self._path.read_text())
+        except (json.JSONDecodeError, OSError) as exc:
+            log.error("Could not read the saved book (%s); starting flat", exc)
+            return {"restored": 0, "detail": f"unreadable: {exc}"}
+
+        restored, failed = 0, 0
+        for record in saved.get("open", []):
+            try:
+                position = OpenPosition.from_state(record)
+            except (KeyError, ValueError, TypeError) as exc:
+                # Never drop a position silently: an unrestorable one is still
+                # live at the broker and now invisible to the desk.
+                log.error("Could not restore position %s: %s", record.get("proposal_id"), exc)
+                failed += 1
+                continue
+            self.open[position.id] = position
+            restored += 1
+
+        for record in saved.get("closed", []):
+            try:
+                self.closed.append(ClosedPosition.from_state(record))
+            except (KeyError, ValueError, TypeError):
+                continue
+
+        self.cash_pnl = float(saved.get("cash_pnl", 0.0))
+        self.starting_equity = float(saved.get("starting_equity", self.starting_equity))
+
+        if saved.get("session_date") == date.today().isoformat():
+            self.start_of_day_equity = float(saved.get("start_of_day_equity", self.equity))
+        else:
+            self.start_of_day_equity = self.equity
+
+        detail = f"{restored} open, {len(self.closed)} closed"
+        if failed:
+            detail += f", {failed} UNRESTORABLE — check the broker manually"
+        log.info("Restored book: %s", detail)
+        return {"restored": restored, "failed": failed, "detail": detail}
 
     def sync_from_alpaca(self, alpaca_positions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Reconcile the local book against the broker's option positions.

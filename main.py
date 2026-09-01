@@ -199,6 +199,16 @@ def build_desk(dry_run: bool = False):
 
     gate = DeterministicRiskGate(equity)
     portfolio = Portfolio(gate, equity)
+
+    # Restore the book before the first cycle. A desk that starts flat while
+    # positions are still live at the broker will not manage their exits and
+    # will authorise a fresh set on top of them.
+    restored = portfolio.load()
+    if restored["restored"]:
+        print(f"  {C['g']}✓{C['x']} Restored open book — {restored['detail']}")
+    if restored.get("failed"):
+        print(f"  {C['r']}✗{C['x']} {restored['failed']} position(s) could not be restored — "
+              f"check the broker manually")
     executor = ExecutionAgent(
         gate, cli=cli, rest=rest,
         preferred_route=SETTINGS.execution_route,

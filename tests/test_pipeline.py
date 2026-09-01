@@ -820,3 +820,147 @@ def test_unreachable_clock_fails_open(tmp_path, monkeypatch):
         settings=Settings(),
     )
     assert desk.run_cycle().outcomes, "an unreachable clock must not halt trading"
+
+
+# --------------------------------------------------------------------------
+# The book must survive a restart
+# --------------------------------------------------------------------------
+
+def _restart(tmp_path, monkeypatch):
+    """A fresh Portfolio over the same data directory — i.e. a process restart."""
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+    pf.load()
+    return pf
+
+
+def test_open_positions_survive_a_restart(tmp_path, monkeypatch):
+    """The bug this guards: the desk forgot its book on every restart.
+
+    An unmanaged position is not a bookkeeping problem — the exit guard cannot
+    stop out a structure it does not know about, and the risk gate will
+    authorise a fresh six on top of the six still live at the broker.
+    """
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+
+    p = _spread(contracts=3)
+    p.proposal_id = "p1"
+    p.thesis = "restored trade"
+    pf.add(p, order_id="ord-123")
+
+    after = _restart(tmp_path, monkeypatch)
+    assert len(after.open) == 1
+    got = after.open["p1"]
+    assert got.proposal.symbol == "SPY"
+    assert got.proposal.contracts == 3
+    assert got.order_id == "ord-123"
+    assert got.proposal.thesis == "restored trade"
+
+
+def test_restored_position_reports_identical_risk(tmp_path, monkeypatch):
+    """Max loss is what every limit is measured against — it must not drift."""
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+    p = _spread(contracts=4)
+    p.proposal_id = "p1"
+    pf.add(p)
+
+    before = (p.max_loss, p.max_profit, p.net_delta, p.widest_wing)
+    restored = _restart(tmp_path, monkeypatch).open["p1"].proposal
+    after = (restored.max_loss, restored.max_profit, restored.net_delta, restored.widest_wing)
+    assert before == pytest.approx(after, abs=1e-9)
+
+
+def test_risk_limits_account_for_the_restored_book(tmp_path, monkeypatch):
+    """The gate must see restored positions, or it double-allocates capital."""
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+    for i in range(3):
+        p = _spread(contracts=4)
+        p.proposal_id = f"p{i}"
+        pf.add(p)
+    expected = pf.capital_at_risk
+
+    after = _restart(tmp_path, monkeypatch)
+    assert after.state().open_positions == 3
+    assert after.state().total_capital_at_risk == pytest.approx(expected)
+    assert after.state().risk_by_symbol["SPY"] == pytest.approx(expected)
+
+
+def test_realised_pnl_and_history_survive(tmp_path, monkeypatch):
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+    p = _spread()
+    p.proposal_id = "p1"
+    pf.add(p).unrealized_pnl = 240.0
+    pf.close("p1", "profit target")
+
+    after = _restart(tmp_path, monkeypatch)
+    assert after.realized_pnl == pytest.approx(240.0)
+    assert after.equity == pytest.approx(100_240.0)
+    assert len(after.closed) == 1
+    assert after.closed[0].reason == "profit target"
+
+
+def test_drawdown_baseline_resets_on_a_new_session(tmp_path, monkeypatch):
+    """Carrying yesterday's opening balance would make the kill switch measure
+    the wrong drawdown all day."""
+    import json
+
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+    pf.cash_pnl = -4_000.0
+    pf.start_of_day_equity = 100_000.0
+    pf.save()
+
+    saved = json.loads((tmp_path / "positions.json").read_text())
+    saved["session_date"] = "2020-01-01"          # a previous session
+    (tmp_path / "positions.json").write_text(json.dumps(saved))
+
+    after = _restart(tmp_path, monkeypatch)
+    assert after.start_of_day_equity == pytest.approx(96_000.0)
+    assert after.day_pnl == pytest.approx(0.0), "a new session starts flat"
+
+
+def test_same_session_keeps_its_baseline(tmp_path, monkeypatch):
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+    pf = portfolio_module.Portfolio(gate, 100_000.0)
+    pf.cash_pnl = -2_500.0
+    pf.save()
+
+    after = _restart(tmp_path, monkeypatch)
+    assert after.start_of_day_equity == pytest.approx(100_000.0)
+    assert after.day_pnl == pytest.approx(-2_500.0), "mid-session drawdown must persist"
+
+
+def test_missing_or_corrupt_book_starts_flat_without_crashing(tmp_path, monkeypatch):
+    import deflow.portfolio as portfolio_module
+
+    monkeypatch.setattr(portfolio_module, "DATA_DIR", tmp_path)
+    gate = DeterministicRiskGate(100_000.0)
+
+    assert portfolio_module.Portfolio(gate, 100_000.0).load()["restored"] == 0
+    (tmp_path / "positions.json").write_text("{ not json")
+    assert portfolio_module.Portfolio(gate, 100_000.0).load()["restored"] == 0
