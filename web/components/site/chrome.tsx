@@ -53,11 +53,17 @@ export function Nav() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/ledger/"
+            className="hidden rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body sm:block"
+          >
+            Ledger
+          </Link>
           <a
             href={GITHUB_URL}
             target="_blank"
             rel="noreferrer"
-            className="hidden rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body sm:block"
+            className="hidden rounded-md border border-ink-hair px-3.5 py-2 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body md:block"
           >
             GitHub
           </a>

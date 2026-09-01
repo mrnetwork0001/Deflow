@@ -35,8 +35,8 @@ export function CTA() {
 const COLUMNS: [string, [string, string, boolean?][]][] = [
   ["Product", [
     ["Live desk", "/dashboard/"],
+    ["Decision ledger", "/ledger/"],
     ["API reference", "/docs", true],
-    ["Decision ledger", "/api/ledger", true],
     ["Risk envelope", "/api/risk/envelope", true],
   ]],
   ["Project", [

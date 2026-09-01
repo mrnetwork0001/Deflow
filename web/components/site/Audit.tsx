@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Section } from "./chrome";
+import { ButtonLink, Card, Section } from "./chrome";
 import { ChainGraphic } from "./visuals";
 
 export function Audit() {
@@ -37,6 +37,9 @@ export function Audit() {
               <p className="mt-2.5 font-sans text-[13.5px] leading-[1.7] text-muted">{d}</p>
             </Card>
           ))}
+          <div className="pt-1">
+            <ButtonLink href="/ledger/" variant="ghost">Read the live ledger</ButtonLink>
+          </div>
         </div>
       </div>
     </Section>

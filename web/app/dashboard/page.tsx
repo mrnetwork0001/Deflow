@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { EquityCurve } from "@/components/EquityCurve";
 import { EventStream } from "@/components/EventStream";
 import { Mark } from "@/components/site/chrome";
 import { PositionsTable } from "@/components/PositionsTable";
+import { Refusals } from "@/components/Refusals";
 import { RegimeGrid } from "@/components/RegimeGrid";
 import { RiskGatePanel } from "@/components/RiskGatePanel";
 import { Badge, Meter, Panel, Stat } from "@/components/ui";
@@ -100,9 +102,11 @@ export default function Dashboard() {
             {status?.reasoning.featherless_enabled ? "Featherless AI" : "deterministic ranker"}
           </Badge>
           <Badge tone="muted">route: {status?.execution.route}</Badge>
-          <Badge tone={status?.ledger.valid ? "gain" : "loss"}>
-            ledger {status?.ledger.entries} · {status?.ledger.valid ? "chain intact" : "CHAIN BROKEN"}
-          </Badge>
+          <Link href="/ledger/" aria-label="Open the decision ledger">
+            <Badge tone={status?.ledger.valid ? "gain" : "loss"}>
+              ledger {status?.ledger.entries} · {status?.ledger.valid ? "chain intact" : "CHAIN BROKEN"}
+            </Badge>
+          </Link>
           <button
             onClick={runCycle}
             disabled={busy}
@@ -146,6 +150,11 @@ export default function Dashboard() {
         </div>
       </Panel>
 
+      {/* ---- Equity curve ------------------------------------------------ */}
+      <div className="mb-4">
+        <EquityCurve />
+      </div>
+
       {/* ---- Regime ------------------------------------------------------ */}
       <div className="mb-4">
         <RegimeGrid views={views} />
@@ -157,7 +166,14 @@ export default function Dashboard() {
         <EventStream />
       </div>
 
-      {/* ---- Risk gate --------------------------------------------------- */}
+      {/* ---- Refusals + risk gate ----------------------------------------
+          Deliberately adjacent: roughly half of every scan ends in a refusal,
+          and the gate is where the last of them happen. Together they are the
+          system's actual behaviour, not an absence of it. */}
+      <div className="mb-4">
+        <Refusals />
+      </div>
+
       <RiskGatePanel envelope={envelope} />
 
       <footer className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-ink-line pt-3 text-[10px] text-muted">
