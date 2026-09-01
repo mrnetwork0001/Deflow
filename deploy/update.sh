@@ -9,9 +9,12 @@
 set -euo pipefail
 APP_DIR=/opt/deflow
 
+# Same ownership exception as the installer: scoped to this repo, not global.
+GIT=(git -c "safe.directory=${APP_DIR}")
+
 echo "==> Fetching"
-git -C "$APP_DIR" fetch --quiet origin main
-git -C "$APP_DIR" reset --hard --quiet origin/main
+"${GIT[@]}" -C "$APP_DIR" fetch --quiet origin main
+"${GIT[@]}" -C "$APP_DIR" reset --hard --quiet origin/main
 
 echo "==> Dependencies"
 "$APP_DIR/.venv/bin/pip" install --quiet -r "$APP_DIR/requirements.txt"

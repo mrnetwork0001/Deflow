@@ -27,6 +27,13 @@ APP_DIR="${APP_DIR:-/opt/deflow}"
 REPO=https://github.com/mrnetwork0001/Deflow.git
 GO_VERSION=1.24.0
 
+# /opt/deflow is owned by the deflow service user while this script runs as
+# root, and git refuses to operate on a repository owned by someone else
+# ("dubious ownership"). The exception is passed per-invocation with -c rather
+# than written into root's global gitconfig, so it applies to this directory
+# and nowhere else on the host.
+GIT=(git -c "safe.directory=${APP_DIR}")
+
 say()  { printf '\n\033[1;32m==>\033[0m %s\n' "$*"; }
 skip() { printf '    \033[2m· %s\033[0m\n' "$*"; }
 warn() { printf '    \033[33m! %s\033[0m\n' "$*"; }
@@ -94,8 +101,8 @@ fi
 # ---------------------------------------------------------------------------
 say "Fetching the application into $APP_DIR"
 if [[ -d "$APP_DIR/.git" ]]; then
-  git -C "$APP_DIR" fetch --quiet origin main
-  git -C "$APP_DIR" reset --hard --quiet origin/main
+  "${GIT[@]}" -C "$APP_DIR" fetch --quiet origin main
+  "${GIT[@]}" -C "$APP_DIR" reset --hard --quiet origin/main
   skip "updated existing checkout"
 else
   # git clone refuses a non-empty directory, and a skeleton home is non-empty
@@ -105,7 +112,7 @@ else
   git clone --quiet "$REPO" "$TMP_CLONE/repo"
   mv "$TMP_CLONE/repo/.git" "$APP_DIR/.git"
   rm -rf "$TMP_CLONE"
-  git -C "$APP_DIR" reset --hard --quiet HEAD
+  "${GIT[@]}" -C "$APP_DIR" reset --hard --quiet HEAD
   skip "cloned into the existing directory"
 fi
 mkdir -p "$APP_DIR/data"
