@@ -14,18 +14,18 @@ export default function LedgerPage() {
             decision ledger
           </span>
         </Link>
-        <nav className="flex items-center gap-2">
-          <Link
-            href="/dashboard/"
-            className="rounded-md border border-ink-hair px-3 py-1.5 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body"
-          >
-            Live desk
-          </Link>
+        <nav className="flex items-center gap-2.5">
           <Link
             href="/"
-            className="rounded-md border border-ink-hair px-3 py-1.5 font-mono text-[11px] text-muted transition-colors hover:border-muted hover:text-body"
+            className="rounded-md px-3 py-2 font-mono text-[11px] text-muted transition-colors hover:text-body focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gain/60"
           >
             Overview
+          </Link>
+          <Link
+            href="/dashboard/"
+            className="inline-flex items-center gap-2 rounded-md bg-gain px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink transition-colors hover:bg-gain-dim focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gain/50"
+          >
+            Live desk →
           </Link>
         </nav>
       </header>

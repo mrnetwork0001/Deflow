@@ -14,6 +14,18 @@ import {
   AnalystView, Position, Status, getJSON, money, postJSON, pct, signedMoney, signedPct,
 } from "@/lib/api";
 
+function StatusItem({ dot, label, title }: { dot: string; label: string; title: string }) {
+  return (
+    <span
+      title={title}
+      className="flex items-center gap-2 px-3 py-2 font-mono text-[11px] text-muted"
+    >
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
+}
+
 export default function Dashboard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [views, setViews] = useState<AnalystView[]>([]);
@@ -89,25 +101,66 @@ export default function Dashboard() {
             live desk
           </span>
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={live ? "gain" : "warn"}>
-            {live ? "Alpaca paper trading" : "simulation — no credentials"}
-          </Badge>
-          <Badge tone={status?.reasoning.featherless_enabled ? "info" : "muted"}>
-            {status?.reasoning.featherless_enabled ? "Featherless AI" : "deterministic ranker"}
-          </Badge>
-          <Badge tone="muted">route: {status?.execution.route}</Badge>
-          <Link href="/ledger/" aria-label="Open the decision ledger">
-            <Badge tone={status?.ledger.valid ? "gain" : "loss"}>
-              ledger {status?.ledger.entries} · {status?.ledger.valid ? "chain intact" : "CHAIN BROKEN"}
-            </Badge>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* STATUS — read-only. Grouped into one strip with internal
+              dividers and no individual borders, so it reads as a readout
+              rather than a row of things to press. Every one of these used to
+              be a bordered pill identical to the buttons beside them. */}
+          <div className="flex items-stretch divide-x divide-ink-line overflow-hidden rounded-md border border-ink-line bg-ink-raised">
+            <StatusItem
+              dot={live ? "bg-gain" : "bg-warn"}
+              label={live ? "Alpaca paper" : "simulation"}
+              title={live ? "Trading a live Alpaca paper account" : "No credentials — seeded simulated market"}
+            />
+            <StatusItem
+              dot={status?.reasoning.featherless_enabled ? "bg-info" : "bg-faint"}
+              label={status?.reasoning.featherless_enabled ? "Featherless" : "deterministic"}
+              title={
+                status?.reasoning.featherless_enabled
+                  ? `Reasoning layer: ${status.reasoning.model}`
+                  : "No model key — using the deterministic ranker"
+              }
+            />
+            <StatusItem
+              dot="bg-faint"
+              label={status?.execution.route ?? "—"}
+              title="Order routing surface"
+            />
+            {status?.market_open !== undefined && (
+              <StatusItem
+                dot={status.market_open ? "bg-gain" : "bg-faint"}
+                label={status.market_open ? "open" : "closed"}
+                title={status.market_open ? "US market open" : status.market_detail || "US market closed"}
+              />
+            )}
+          </div>
+
+          {/* ACTIONS — everything below is interactive and looks it. */}
+          <Link
+            href="/ledger/"
+            className={`group inline-flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gain/60 ${
+              status?.ledger.valid === false
+                ? "border-loss/45 bg-loss/10 text-loss hover:bg-loss/20"
+                : "border-ink-hair text-muted hover:border-muted hover:text-body"
+            }`}
+          >
+            <span className="tabular">
+              Ledger {status ? status.ledger.entries.toLocaleString() : "—"}
+            </span>
+            <span className="text-faint group-hover:text-inherit">
+              {status?.ledger.valid === false ? "chain broken" : "↗"}
+            </span>
           </Link>
+
           <button
             onClick={runCycle}
             disabled={busy}
-            className="rounded border border-gain/40 bg-gain/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-gain transition hover:bg-gain/20 disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-md bg-gain px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink transition-colors hover:bg-gain-dim focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gain/50 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {busy ? "running…" : "run cycle"}
+            {busy && (
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-ink/30 border-t-ink" />
+            )}
+            {busy ? "running" : "Run cycle"}
           </button>
         </div>
       </header>

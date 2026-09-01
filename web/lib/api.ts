@@ -56,6 +56,7 @@ export interface WorkingOrder {
 export interface Status {
   mode: string;
   market_open?: boolean;
+  market_detail?: string;
   working_orders?: WorkingOrder[];
   simulated_market_data: boolean;
   universe: string[];
