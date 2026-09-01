@@ -1,12 +1,11 @@
 # Deflow — AI Logic, Risk Gates, and Alpaca Infrastructure
 
-**lablab.ai × Alpaca AI Trading Agents Hackathon** · Ifeanyichukwu Onwo ([@mrnetwork](https://github.com/mrnetwork))
-**Alpaca paper account:** `<FRESH_PAPER_ACCOUNT_ID>` · starting balance $100,000
-**Repository:** https://github.com/mrnetwork/Deflow · MIT
+**lablab.ai × Alpaca AI Trading Agents Hackathon** · Ifeanyichukwu Onwo ([@mrnetwork0001](https://github.com/mrnetwork0001))
+**Alpaca paper account:** `PA3KERV81N47` · starting balance $100,000
+**Repository:** https://github.com/mrnetwork0001/Deflow · MIT
 
-> ⚠️ Before submitting: replace `<FRESH_PAPER_ACCOUNT_ID>` with the account number printed by
-> `python main.py --check`. It must be a **brand-new** paper account created for this hackathon —
-> reused accounts are not eligible for judging.
+> Account `PA3KERV81N47` was created fresh for this hackathon with a $100,000 balance and no
+> prior trading history, so every position and every dollar of P&L in it is this agent's.
 
 ---
 

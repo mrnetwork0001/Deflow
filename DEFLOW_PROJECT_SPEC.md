@@ -1,7 +1,7 @@
 # Deflow — Technical Specification
 
 > **Event:** lablab.ai × Alpaca AI Trading Agents Hackathon (28 Aug – 4 Sep 2026)
-> **Author:** Ifeanyichukwu Onwo ([@mrnetwork](https://github.com/mrnetwork))
+> **Author:** Ifeanyichukwu Onwo ([@mrnetwork0001](https://github.com/mrnetwork0001))
 > **License:** MIT · **Stack:** Python 3.11+ · FastAPI · Next.js 14 · Alpaca Trading API + CLI + MCP
 > **Account:** fresh Alpaca paper account, $100,000 starting balance
 

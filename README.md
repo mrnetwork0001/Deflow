@@ -265,7 +265,7 @@ python main.py --check
 (MCP server), Node 18+ (to rebuild the dashboard — a built copy is committed).
 
 ```bash
-git clone https://github.com/mrnetwork/Deflow.git
+git clone https://github.com/mrnetwork0001/Deflow.git
 cd Deflow
 python main.py
 ```
@@ -409,5 +409,5 @@ Stated plainly, because a risk system that oversells itself is the wrong kind of
 
 ## License
 
-[MIT](LICENSE) · Built by Ifeanyichukwu Onwo ([@mrnetwork](https://github.com/mrnetwork)) for the
+[MIT](LICENSE) · Built by Ifeanyichukwu Onwo ([@mrnetwork0001](https://github.com/mrnetwork0001)) for the
 lablab.ai × Alpaca AI Trading Agents Hackathon, September 2026.
