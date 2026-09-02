@@ -100,6 +100,26 @@ function ReopenCountdown({ iso, detail }: { iso?: string | null; detail?: string
   );
 }
 
+function useMinuteTick(enabled: boolean) {
+  const [, setBeat] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const t = setInterval(() => setBeat((b) => b + 1), 30_000);
+    return () => clearInterval(t);
+  }, [enabled]);
+}
+
+function marketCloseLabel(iso?: string | null): string | null {
+  if (!iso) return null;
+  const target = new Date(iso).getTime();
+  if (!Number.isFinite(target)) return null;
+  const remaining = target - Date.now();
+  if (remaining <= 0) return "closing";
+  const h = Math.floor(remaining / 3_600_000);
+  const m = Math.ceil((remaining % 3_600_000) / 60_000);
+  return h > 0 ? `closes ${h}h ${m}m` : `closes ${m}m`;
+}
+
 function StatusItem({ dot, label, title }: { dot: string; label: string; title: string }) {
   return (
     <span
@@ -179,6 +199,7 @@ export default function Dashboard() {
     );
   }
 
+  useMinuteTick(Boolean(status?.market_open && status?.market_closes_at));
   const perf = status?.performance;
   // The broker owns the book. When it has not answered -- which is every
   // restart, until the first call lands -- our own mid-marks are NOT a
@@ -258,8 +279,18 @@ export default function Dashboard() {
             {status?.market_open !== undefined && (
               <StatusItem
                 dot={status.market_open ? "bg-gain" : "bg-faint"}
-                label={status.market_open ? "open" : "closed"}
-                title={status.market_open ? "US market open" : status.market_detail || "US market closed"}
+                label={
+                  status.market_open
+                    ? `open${marketCloseLabel(status.market_closes_at) ? ` · ${marketCloseLabel(status.market_closes_at)}` : ""}`
+                    : "closed"
+                }
+                title={
+                  status.market_open
+                    ? status.market_closes_at
+                      ? `US market open — closes ${new Date(status.market_closes_at).toLocaleString(undefined, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}`
+                      : "US market open"
+                    : status.market_detail || "US market closed"
+                }
               />
             )}
           </div>

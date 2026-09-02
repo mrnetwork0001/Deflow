@@ -325,8 +325,15 @@ class AlpacaMarketData:
             return True, "clock unavailable - assuming open"
 
         data = result.data or {}
-        state = (bool(data.get("is_open")), str(data.get("next_open", "")))
-        verdict = (state[0], "" if state[0] else f"closed until {state[1]}")
+        is_open = bool(data.get("is_open"))
+        # Both edges of the session, not just the one we happened to need
+        # first: the dashboard counts down to the open while closed and to the
+        # close while open.
+        verdict = (
+            is_open,
+            f"open until {data.get('next_close', '')}" if is_open
+            else f"closed until {data.get('next_open', '')}",
+        )
         self._chain_cache["clock"] = (datetime.now(timezone.utc), verdict)
         return verdict
 

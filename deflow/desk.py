@@ -760,15 +760,19 @@ class TradingDesk:
         # to do timezone arithmetic in their head; a dashboard can render a
         # countdown and the viewer's local time from the timestamp alone.
         reopens = None
-        if not is_open:
-            m = re.search(r"\d{4}-\d{2}-\d{2}T[0-9:.]+(?:[+-]\d{2}:\d{2}|Z)?", why)
-            if m:
+        closes = None
+        m = re.search(r"\d{4}-\d{2}-\d{2}T[0-9:.]+(?:[+-]\d{2}:\d{2}|Z)?", why)
+        if m:
+            if is_open:
+                closes = m.group(0)
+            else:
                 reopens = m.group(0)
         return {
             "mode": self.settings.mode,
             "market_open": is_open,
             "market_detail": why,
             "market_reopens_at": reopens,
+            "market_closes_at": closes,
             "simulated_market_data": getattr(self.provider, "simulated", True),
             "universe": self.settings.universe,
             "cycles_run": self.cycles,

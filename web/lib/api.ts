@@ -77,6 +77,9 @@ export interface Status {
    *  reader do timezone arithmetic; this field exists so the UI can render a
    *  countdown and the viewer's own local time instead. */
   market_reopens_at?: string | null;
+  /** ISO instant of the close, present while the session is open, so the
+   *  header can count down to it in the viewer's own clock. */
+  market_closes_at?: string | null;
   working_orders?: WorkingOrder[];
   simulated_market_data: boolean;
   universe: string[];
