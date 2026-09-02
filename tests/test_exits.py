@@ -17,6 +17,7 @@ cost money only because no exit had ever fired:
 
 from __future__ import annotations
 
+import types
 from datetime import date, timedelta
 
 import pytest
@@ -322,3 +323,71 @@ def test_save_stamps_the_baselines_own_date_not_today(tmp_path, monkeypatch):
     pf.session_date = "2026-09-01"          # baseline from yesterday...
     pf.save()                                # ...saved after midnight
     assert json.loads((tmp_path / "p.json").read_text())["session_date"] == "2026-09-01"
+
+
+# -- the mandate horizon ---------------------------------------------------
+
+def _mandate(monkeypatch, end: str, flatten="14:00"):
+    """Settings is frozen; swap the module's reference for a stub carrying the
+    two fields the mandate helpers read."""
+    import deflow.portfolio as pm
+    monkeypatch.setattr(
+        pm, "SETTINGS",
+        types.SimpleNamespace(mandate_end=end, mandate_flatten_utc=flatten),
+    )
+
+
+def _book(tmp_path, monkeypatch, pnl=100.0):
+    import deflow.portfolio as pm
+    monkeypatch.setattr(pm, "DATA_DIR", tmp_path)
+    pf = pm.Portfolio(DeterministicRiskGate(100_000.0), 100_000.0)
+    monkeypatch.setattr(pf, "_path", tmp_path / "p.json")
+    pos = pf.add(debit_spread(), order_id="o-1")
+    pos.unrealized_pnl = pnl
+    return pf, pos
+
+
+def test_no_mandate_means_no_behaviour_change(tmp_path, monkeypatch):
+    _mandate(monkeypatch, "")
+    pf, pos = _book(tmp_path, monkeypatch, pnl=0.30 * pos_max_profit_placeholder(tmp_path, monkeypatch))
+    assert pf.exits_due() == []
+
+
+def pos_max_profit_placeholder(tmp_path, monkeypatch):
+    # max profit of the 450/460 spread for 1 contract: (10 - 4.75) * 100
+    return 525.0
+
+
+def test_horizon_lowers_the_profit_target(tmp_path, monkeypatch):
+    """One session left: 25% of max profit is enough. The same P&L with no
+    mandate set does not trigger (the DTE target is 75% at 30 DTE)."""
+    from datetime import date, timedelta
+    _mandate(monkeypatch, (date.today() + timedelta(days=1)).isoformat())
+    pf, pos = _book(tmp_path, monkeypatch, pnl=0.30 * 525.0)  # 30% of max profit
+    due = pf.exits_due()
+    assert len(due) == 1 and "mandate" in due[0][1]
+
+    _mandate(monkeypatch, "")
+    assert pf.exits_due() == []
+
+
+def test_final_session_flatten_takes_everything_after_the_gate_time(tmp_path, monkeypatch):
+    from datetime import date
+    _mandate(monkeypatch, date.today().isoformat(), flatten="00:00")  # window open all day
+    pf, pos = _book(tmp_path, monkeypatch, pnl=-40.0)  # even a loser goes
+    due = pf.exits_due()
+    assert len(due) == 1 and "MANDATE HORIZON" in due[0][1]
+
+
+def test_flatten_waits_for_its_window(tmp_path, monkeypatch):
+    from datetime import date
+    _mandate(monkeypatch, date.today().isoformat(), flatten="23:59")
+    pf, pos = _book(tmp_path, monkeypatch, pnl=-40.0)
+    assert all("MANDATE" not in r for _, r in pf.exits_due())
+
+
+def test_a_past_mandate_takes_any_profit(tmp_path, monkeypatch):
+    from datetime import date, timedelta
+    _mandate(monkeypatch, (date.today() - timedelta(days=1)).isoformat(), flatten="23:59")
+    pf, pos = _book(tmp_path, monkeypatch, pnl=5.0)
+    assert len(pf.exits_due()) == 1

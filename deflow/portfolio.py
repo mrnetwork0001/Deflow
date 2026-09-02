@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from risk_gate import DeterministicRiskGate, PortfolioState
 
 from . import rolls
-from .config import DATA_DIR
+from .config import DATA_DIR, SETTINGS
 from .greeks import black_scholes, years_to_expiry
 from .models import (
     CONTRACT_MULTIPLIER,
@@ -633,6 +633,30 @@ class Portfolio:
         for position in self.open.values():
             position.mark(by_symbol, spots.get(position.symbol, 0.0))
 
+    def _mandate_days_left(self) -> Optional[int]:
+        """Calendar days until the desk's mandate ends, or None if open-ended."""
+        raw = SETTINGS.mandate_end
+        if not raw:
+            return None
+        try:
+            end = date.fromisoformat(raw)
+        except ValueError:
+            log.warning("DEFLOW_MANDATE_END %r is not an ISO date; ignoring it", raw)
+            return None
+        return (end - date.today()).days
+
+    def _mandate_flatten_now(self, days_left: Optional[int]) -> bool:
+        """True once the final session's flatten window has opened."""
+        if days_left is None or days_left > 0:
+            return False
+        try:
+            hh, mm = SETTINGS.mandate_flatten_utc.split(":")
+            gate_minutes = int(hh) * 60 + int(mm)
+        except (ValueError, AttributeError):
+            gate_minutes = 14 * 60
+        now = datetime.now(timezone.utc)
+        return now.hour * 60 + now.minute >= gate_minutes
+
     def exits_due(self) -> List[tuple[OpenPosition, str]]:
         """Positions the deterministic exit guard says to close now.
 
@@ -643,11 +667,25 @@ class Portfolio:
         for it risks the most to earn the least.
         """
         due = []
+        days_left = self._mandate_days_left()
+        flatten = self._mandate_flatten_now(days_left)
         for position in self.open.values():
             # Already has a close working at the broker. Submitting another
             # would risk both filling -- a doubled exit is a new naked position
             # in the opposite direction.
             if position.id in self.pending_exits:
+                continue
+            if flatten:
+                # The mandate's final session: every mark still on the book at
+                # the deadline is provisional, and a mark is not a result. The
+                # flatten ignores mark_suspect on purpose -- there is no next
+                # cycle to defer to -- and the close is priced off the current
+                # mark with the usual concession either way.
+                due.append((position, (
+                    f"MANDATE HORIZON: flattening before the mandate ends "
+                    f"({SETTINGS.mandate_end}); realising "
+                    f"${position.unrealized_pnl:,.2f} rather than carrying a mark."
+                )))
                 continue
             # A mark outside the structure's own payoff bounds is bad data by
             # definition (mark() clamps the P&L and raises this flag). Firing
@@ -664,11 +702,20 @@ class Portfolio:
             )
             if not should_close and position.max_profit > 0:
                 target = rolls.profit_target(position.dte)
+                basis = f"at {position.dte} DTE"
+                # A known end date imposes its own urgency: whichever target
+                # is LOWER wins, because a target the position cannot reach
+                # before the mandate ends is a refusal to realise.
+                if days_left is not None:
+                    ht = rolls.horizon_target(days_left)
+                    if ht is not None and ht < target:
+                        target = ht
+                        basis = f"with {max(days_left, 0)} session(s) of mandate left"
                 if position.unrealized_pnl >= target * position.max_profit:
                     should_close = True
                     reason = (
                         f"PROFIT TARGET (time-scaled): ${position.unrealized_pnl:,.2f} reached "
-                        f"{target:.0%} of ${position.max_profit:,.2f} at {position.dte} DTE."
+                        f"{target:.0%} of ${position.max_profit:,.2f} {basis}."
                     )
             if should_close:
                 due.append((position, reason))

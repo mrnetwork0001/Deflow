@@ -60,6 +60,23 @@ FAR_DTE = 30
 NEAR_DTE = 7
 
 
+# --- Mandate-horizon profit target ------------------------------------------
+
+# When the desk has a known end date, take profits earlier as it approaches:
+# a target the position cannot plausibly reach before the mandate ends is not
+# a target, it is a refusal to realise. Sessions remaining -> fraction of max
+# profit worth waiting for. None means the horizon imposes no extra urgency.
+HORIZON_TARGETS = {2: 0.50, 1: 0.25, 0: 0.10}
+
+
+def horizon_target(days_to_mandate_end: int) -> float | None:
+    """Fraction of max profit worth holding for with this many days left."""
+    if days_to_mandate_end < 0:
+        # Past the mandate: anything positive is worth taking.
+        return 0.0
+    return HORIZON_TARGETS.get(days_to_mandate_end)
+
+
 def profit_target(dte: int) -> float:
     """Fraction of maximum profit worth holding out for at `dte` days.
 

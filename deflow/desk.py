@@ -184,6 +184,12 @@ class TradingDesk:
         if self.portfolio.ensure_session():
             self._emit("session_rolled", {"start_of_day_equity": self.portfolio.start_of_day_equity})
 
+        # On the mandate's final session the desk manages and flattens; it
+        # does not open. A 45-DTE spread entered eighty minutes before the
+        # flatten donates the bid/ask twice and can never express its thesis.
+        days_left = self.portfolio._mandate_days_left()
+        final_session = days_left is not None and days_left <= 0
+
         # Do nothing while the session is closed. Outside market hours the
         # option chain still returns quotes -- yesterday's, wide and stale --
         # so the desk would happily construct spreads from prices nobody can
@@ -216,7 +222,13 @@ class TradingDesk:
             report.errors.append(f"position management: {exc}")
 
         # --- 1-6. Look for new risk ----------------------------------------
+        if final_session:
+            self._emit("mandate_final_session", {
+                "detail": "entries disabled; managing exits toward the mandate end",
+            })
         for symbol in self.settings.universe:
+            if final_session:
+                break
             try:
                 report.outcomes.append(self._process_symbol(symbol))
             except Exception as exc:

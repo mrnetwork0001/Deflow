@@ -154,6 +154,16 @@ class Settings:
     mcp_command: str = field(default_factory=lambda: _env("DEFLOW_MCP_COMMAND", default=""))
     dry_run: bool = field(default_factory=lambda: _bool("DEFLOW_DRY_RUN", False))
 
+    # The day this desk's mandate ends, ISO date, or empty for an open-ended
+    # desk. A desk with a known end date should manage toward it: unrealised
+    # P&L on a 45-DTE spread the day the mandate ends is a provisional mark,
+    # and a mark is not a result. Unset, nothing below changes behaviour.
+    mandate_end: str = field(default_factory=lambda: _env("DEFLOW_MANDATE_END", default=""))
+    # On the final session, start flattening from this UTC time (HH:MM).
+    mandate_flatten_utc: str = field(
+        default_factory=lambda: _env("DEFLOW_MANDATE_FLATTEN_UTC", default="14:00")
+    )
+
     @property
     def has_alpaca_credentials(self) -> bool:
         return not _is_placeholder(self.alpaca_key) and not _is_placeholder(self.alpaca_secret)
