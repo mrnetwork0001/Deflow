@@ -474,7 +474,17 @@ export default function Dashboard() {
 
           {/* ---- Equity curve ------------------------------------------------ */}
           <div id="equity" tabIndex={-1} className="mb-4 scroll-mt-20 focus:outline-none xl:scroll-mt-6">
-            <EquityCurve />
+            <EquityCurve
+              headline={
+                money$
+                  ? {
+                      equity: money(money$.equity),
+                      pnl: signedMoney(money$.total_pnl),
+                      retPct: signedPct(money$.return_pct),
+                    }
+                  : null
+              }
+            />
           </div>
 
           {/* ---- Regime ------------------------------------------------------ */}

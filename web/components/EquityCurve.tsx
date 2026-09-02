@@ -115,7 +115,16 @@ function Well({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function EquityCurve() {
+export function EquityCurve({
+  headline,
+}: {
+  /** Broker-backed figures from the same source the Account panel shows.
+   *  The chart below may be on a different basis (the ledger reconstruction
+   *  is mid-mark), and two panels on one screen must not disagree about how
+   *  much money there is: the HEADLINE is always the broker's story, the
+   *  chart is labelled with its own. Null values render as dashes. */
+  headline?: { equity: string | null; pnl: string | null; retPct: string | null } | null;
+}) {
   const [data, setData] = useState<EquityCurveData | null>(null);
   const [error, setError] = useState("");
   const [readAt, setReadAt] = useState<number | null>(null);
@@ -199,7 +208,11 @@ export function EquityCurve() {
     <>
       {stale && <Badge tone="warn">stale</Badge>}
       {offline && <Badge tone="loss">offline</Badge>}
-      {data && <Badge tone={data.source === "alpaca" ? "info" : "muted"}>{data.source}</Badge>}
+      {data && (
+        <Badge tone={data.source === "alpaca" ? "info" : "muted"}>
+          {data.source === "alpaca" ? "curve: broker" : "curve: mid marks"}
+        </Badge>
+      )}
     </>
   );
 
@@ -397,7 +410,31 @@ export function EquityCurve() {
       {/* gap-px over bg-ink-line draws exact hairlines between the cells at any
           column count, so the rail never grows a stray edge as it reflows. */}
       <div className="grid gap-px overflow-hidden rounded-lg border border-ink-line bg-ink-line sm:grid-cols-3">
-        {chart ? (
+        {headline ? (
+          // The page supplied broker-backed figures: use them, never the
+          // chart's last point. The curve's final cycle snapshot yesterday
+          // read +$76.50 (mid marks) while the broker closed the same book
+          // at -$101.50 -- and both were on screen at once.
+          <>
+            <div className="bg-ink-raised px-4 py-3">
+              <Stat label="Equity" value={headline.equity} sub="broker marks" />
+            </div>
+            <div className="bg-ink-raised px-4 py-3">
+              <Stat
+                label="P&L"
+                value={headline.pnl}
+                tone={headline.pnl?.startsWith("-") ? "loss" : "gain"}
+              />
+            </div>
+            <div className="bg-ink-raised px-4 py-3">
+              <Stat
+                label="Return"
+                value={headline.retPct}
+                tone={headline.retPct?.startsWith("-") ? "loss" : "gain"}
+              />
+            </div>
+          </>
+        ) : chart ? (
           <>
             <div className="bg-ink-raised px-4 py-3">
               <Stat label="Equity" value={money(chart.last.equity)} sub={`base ${money(chart.base, 0)}`} />
