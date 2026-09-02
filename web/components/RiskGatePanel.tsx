@@ -71,7 +71,11 @@ const BREAKERS: { id: number; name: string; rule: string; limit: (e: Envelope) =
     id: 2,
     name: "max_loss_2pct",
     rule: "per-trade loss cap, a fixed share of equity",
-    limit: (e) => lim(asPct(e.max_portfolio_risk_pct), asMoney(e.max_loss_per_trade)),
+    // The percentage is the invariant; the dollar cap is 2% of LIVE equity,
+    // which evaluate() computes from the book at ruling time. The envelope's
+    // dollar figure is frozen at boot, and the probe put both in one row:
+    // "cap $2,007.50" in the detail beside "$1,998" in this column.
+    limit: (e) => lim(asPct(e.max_portfolio_risk_pct), "of equity"),
   },
   {
     id: 3,
