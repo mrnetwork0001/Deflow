@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 
+from .closes import read_daily_closes, record_daily_close
 from .config import ROOT, SETTINGS
 from .desk import TradingDesk
 
@@ -541,6 +542,51 @@ def create_app(desk: TradingDesk, autostart: bool = True) -> FastAPI:
         # Refusal totals live in the refusals feed, not per-event here; count
         # what the day's entries actually carry rather than guessing.
         card["refusals"] = refusals
+
+        # A card for the PREVIOUS session used to fall back to the mid-mark
+        # reconstruction, which put "+$76.50 (mid basis)" on a picture of a day
+        # the broker closed at -$101.50 -- the two-numbers problem, on the one
+        # artifact built to be shared. Alpaca's last_equity IS the previous
+        # session's settled close, so a card for that session gets the broker's
+        # number; the close is recorded so older cards keep it after
+        # last_equity moves on.
+        if day != today and entries and _broker_is_the_authority(desk):
+            newest_ledger_day = None
+            try:
+                # The most recent session the ledger has seen strictly before
+                # today: while the market is closed, current account equity is
+                # that session's settled close -- nothing trades overnight.
+                # (last_equity looked right for this but rolls on Alpaca's own
+                # schedule and reported the WRONG day pre-open; the daily
+                # history endpoint lagged a full session. The identity above
+                # is the one source that cannot be wrong.)
+                for r in desk.ledger.read():
+                    d0 = str(r.get("at", ""))[:10]
+                    if d0 and d0 < today.isoformat():
+                        if newest_ledger_day is None or d0 > newest_ledger_day:
+                            newest_ledger_day = d0
+            except Exception:  # noqa: BLE001 - a card must not 500 on a scan
+                newest_ledger_day = None
+            if prefix == newest_ledger_day and prefix not in read_daily_closes():
+                is_open, _why = desk._market_state()
+                truth_now = _broker_truth(desk) if not is_open else None
+                if truth_now is not None:
+                    record_daily_close(prefix, truth_now["equity"])
+        closes = read_daily_closes()
+        if day != today and prefix in closes:
+            settled = closes[prefix]
+            # Prior close: the recorded close of the nearest earlier session,
+            # else the account's starting equity (true for the first session).
+            earlier = sorted((k, v) for k, v in closes.items() if k < prefix)
+            base = earlier[-1][1] if earlier else desk.portfolio.starting_equity
+            card.update({
+                "basis": "alpaca",
+                "equity": settled,
+                "day_pnl": round(settled - base, 2),
+                "day_return_pct": round((settled / base - 1.0) * 100.0, 4) if base else 0.0,
+                "note": "settled close as recorded by the broker",
+            })
+            return card
 
         truth = _broker_truth(desk) if day == today else None
         if truth is not None:
