@@ -178,6 +178,12 @@ class TradingDesk:
         self._emit("cycle_start", {"cycle_id": report.cycle_id, "mode": report.mode,
                                    "universe": self.settings.universe})
 
+        # First cycle of a new calendar day re-anchors the daily drawdown
+        # baseline. Before the market-closed check on purpose: the baseline
+        # belongs to the day, not to the first tradeable minute of it.
+        if self.portfolio.ensure_session():
+            self._emit("session_rolled", {"start_of_day_equity": self.portfolio.start_of_day_equity})
+
         # Do nothing while the session is closed. Outside market hours the
         # option chain still returns quotes -- yesterday's, wide and stale --
         # so the desk would happily construct spreads from prices nobody can

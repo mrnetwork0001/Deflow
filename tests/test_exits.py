@@ -289,3 +289,36 @@ def test_a_suspect_mark_does_not_fire_the_exit_guard(tmp_path, monkeypatch):
     assert desk.portfolio.exits_due() == []
     pos.mark_suspect = False
     assert desk.portfolio.exits_due() != []
+
+
+# -- the daily-drawdown baseline must belong to the day --------------------
+
+def test_the_baseline_rolls_on_the_first_cycle_of_a_new_day(tmp_path, monkeypatch):
+    """roll_session existed and nothing called it: the -3% kill-switch was
+    measuring today's fall from whichever day last happened to restart."""
+    import deflow.portfolio as pm
+    monkeypatch.setattr(pm, "DATA_DIR", tmp_path)
+    pf = pm.Portfolio(DeterministicRiskGate(100_000.0), 100_000.0)
+    monkeypatch.setattr(pf, "_path", tmp_path / "p.json")
+
+    pf.session_date = "2026-09-01"          # yesterday's baseline survived
+    pf.start_of_day_equity = 97_000.0
+    assert pf.ensure_session() is True
+    assert pf.session_date != "2026-09-01"
+    assert pf.start_of_day_equity == pf.equity
+    assert pf.ensure_session() is False, "idempotent within the day"
+
+
+def test_save_stamps_the_baselines_own_date_not_today(tmp_path, monkeypatch):
+    """save() used to write date.today() as session_date, so one save after
+    midnight relabelled the OLD baseline as belonging to the new day and
+    defeated the restart-time roll in load()."""
+    import json
+    import deflow.portfolio as pm
+    monkeypatch.setattr(pm, "DATA_DIR", tmp_path)
+    pf = pm.Portfolio(DeterministicRiskGate(100_000.0), 100_000.0)
+    monkeypatch.setattr(pf, "_path", tmp_path / "p.json")
+
+    pf.session_date = "2026-09-01"          # baseline from yesterday...
+    pf.save()                                # ...saved after midnight
+    assert json.loads((tmp_path / "p.json").read_text())["session_date"] == "2026-09-01"

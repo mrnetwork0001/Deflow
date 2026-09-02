@@ -424,6 +424,11 @@ class Portfolio:
         self.gate = gate
         self.starting_equity = starting_equity
         self.start_of_day_equity = starting_equity
+        # The day the drawdown baseline belongs to. Persisted as-is: save()
+        # used to stamp date.today() instead, so one save after midnight wrote
+        # the new date onto the OLD baseline and every safeguard downstream
+        # trusted the mislabel.
+        self.session_date: str = date.today().isoformat()
         self.cash_pnl = 0.0
         self.open: Dict[str, OpenPosition] = {}
         self.pending: Dict[str, PendingOrder] = {}
@@ -669,9 +674,25 @@ class Portfolio:
                 due.append((position, reason))
         return due
 
-    def roll_session(self) -> None:
-        """Reset the daily drawdown baseline. Called once per trading day."""
+    def ensure_session(self) -> bool:
+        """Roll the daily-drawdown baseline when the calendar day has changed.
+
+        Found via a competitor's build-in-public post describing the same bug
+        class: their drawdown baseline was initialised "to whatever the account
+        was worth right now". Ours was subtler - roll_session existed and
+        nothing called it, so the baseline only moved when a restart happened
+        to cross midnight. Left unrolled after a winning day, the -3% daily
+        kill-switch quietly widens: a fall measured from yesterday's lower
+        baseline reads smaller than the fall the desk actually took today.
+        Called at the top of every cycle; a no-op within the same day.
+        """
+        today = date.today().isoformat()
+        if today == self.session_date:
+            return False
+        self.session_date = today
         self.start_of_day_equity = self.equity
+        self.save()
+        return True
 
     # -- statistics ---------------------------------------------------------
 
@@ -718,7 +739,7 @@ class Portfolio:
                 json.dumps(
                     {
                         "saved_at": utcnow(),
-                        "session_date": date.today().isoformat(),
+                        "session_date": self.session_date,
                         "starting_equity": self.starting_equity,
                         "start_of_day_equity": self.start_of_day_equity,
                         "cash_pnl": self.cash_pnl,
@@ -806,6 +827,7 @@ class Portfolio:
             self.start_of_day_equity = float(saved.get("start_of_day_equity", self.equity))
         else:
             self.start_of_day_equity = self.equity
+        self.session_date = date.today().isoformat()
 
         detail = f"{restored} open, {len(self.pending)} working, {len(self.closed)} closed"
         if failed:
