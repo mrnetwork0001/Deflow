@@ -8,7 +8,7 @@ Up to 5 links go with the final submission.
 |---|-----|--------|------|
 | 1 | Tue 1 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2094702482274312352 |
 | 2 | Wed 2 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2094968034544738620 |
-| 3 | Wed 2 Sep | — | _the silent liquidity filter_ |
+| 3 | Wed 2 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2095242422645362921 |
 | 4 | Thu 3 Sep | — | _results, generated from the ledger_ |
 | 5 | Fri 4 Sep | — | _ship + reveal_ |
 

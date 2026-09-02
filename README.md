@@ -466,7 +466,7 @@ hash-chained ledger, not hand-written.
 |---|-----|-------|--------|
 | 1 | Tue 1 Sep | The thesis - why the model must not size the trade | [posted](https://x.com/encrypt_wizard/status/2094702482274312352) |
 | 2 | Wed 2 Sep | Day-1 results thread: the fill asymmetry, the flattering dashboard, the edge that said no | [posted](https://x.com/encrypt_wizard/status/2094968034544738620) |
-| 3 | Wed 2 Sep | The silent liquidity filter | planned |
+| 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders, quoting the autopsy | [posted](https://x.com/encrypt_wizard/status/2095242422645362921) |
 | 4 | Thu 3 Sep | Results, generated from the ledger | planned |
 | 5 | Fri 4 Sep | Ship + reveal | planned |
 
