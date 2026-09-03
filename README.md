@@ -576,6 +576,16 @@ Stated plainly, because a risk system that oversells itself is the wrong kind of
   credit rests at the mid). The first live session measured exactly this - credit fills lagged
   debit fills badly - and a width-based buffer is the known fix, deliberately not shipped
   mid-competition because it changes live fill behaviour. Documented rather than hidden.
+- **The structurer can pick strikes that collide with the existing book.** When a new spread
+  would sell a contract the account is already long, Alpaca refuses it: *"position intent
+  mismatch, inferred: sell_to_close, specified: sell_to_open"*. It fails closed - the order is
+  rejected, nothing fills, no capital moves - and it has happened once in 64 executions, on a
+  third IWM spread overlapping two the desk already held. The fix is for the structurer to
+  exclude strikes held in the opposite direction when it builds candidates; it is not shipped
+  because the change sits in the path that has to execute correctly at the mandate flatten, and
+  a rare fail-closed rejection is a better trade than an untested structurer three days in.
+  Closing legs are unaffected: every contract is unambiguously long or short, so the intent of
+  a close always matches what the broker infers.
 - **Rolls ship disabled** (`DEFLOW_ROLL_ENABLED`). The roll path still books its close on
   acceptance rather than through the confirmed-fill lifecycle, and it stays off until it books
   on fill like every other exit.
