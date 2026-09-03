@@ -24,9 +24,9 @@ dashboard, and begins trading. With no Alpaca keys it runs the identical pipelin
 seeded simulated market so you can read the whole system before handing it a credential -
 every simulated figure is labelled as such, everywhere it appears.
 
-**Live right now:** [dashboard](https://deflow.38.49.216.120.sslip.io/dashboard/) ·
-[verifiable ledger](https://deflow.38.49.216.120.sslip.io/ledger/) ·
-[docs](https://deflow.38.49.216.120.sslip.io/docs/) - running unattended on a VPS since the
+**Live right now:** [dashboard](https://usedeflow.xyz/dashboard/) ·
+[verifiable ledger](https://usedeflow.xyz/ledger/) ·
+[docs](https://usedeflow.xyz/docs/) - running unattended on a VPS since the
 first session of 2026-09-01.
 
 ---
@@ -67,7 +67,7 @@ fresh approval.
 Editing or deleting any historical entry breaks the chain, and `verify()` reports the index
 where it broke. For a competition judged on P&L, that is the difference between results you
 assert and results a third party can check - the verifier runs
-[in the browser](https://deflow.38.49.216.120.sslip.io/ledger/) and over `GET /api/ledger/verify`.
+[in the browser](https://usedeflow.xyz/ledger/) and over `GET /api/ledger/verify`.
 
 **Refusals are logged as loudly as fills.** A desk that only records its trades cannot be
 audited. Deflow writes an entry for every stand-down, every abstention, every veto, with the
