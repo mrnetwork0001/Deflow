@@ -47,6 +47,7 @@ first session of 2026-09-01.
 - [Building in public](#building-in-public)
 - [Testing](#testing)
 - [Project layout](#project-layout)
+- [Invariants](#invariants)
 - [Notes and limitations](#notes-and-limitations)
 
 ---
@@ -547,6 +548,16 @@ web/                       Next.js 14 app (landing, dashboard, ledger, docs)
 deploy/                    VPS deployment: preflight, additive install, systemd, Caddy
 tests/                     250 tests
 ```
+
+---
+
+## Invariants
+
+Eight properties that must hold or the project's premise collapses - no model output
+becoming a number that reaches the broker, `risk_gate.py` importing only the standard
+library, failing closed, all twelve breakers running every time, defined-risk structures
+only, paper-only endpoints, refusals logged as loudly as fills, and simulated output
+labelled everywhere it surfaces. All are covered by tests: [INVARIANTS.md](INVARIANTS.md).
 
 ---
 

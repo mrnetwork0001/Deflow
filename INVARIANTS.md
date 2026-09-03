@@ -1,6 +1,7 @@
-# Deflow — Project Directives
+# Deflow - Invariants
 
-Persistent context for AI coding assistants working on this repository.
+The properties that must hold for this project's premise to mean anything.
+Every one of them is covered by tests.
 
 ## What this is
 
@@ -8,8 +9,8 @@ An autonomous multi-agent options desk for the lablab.ai × Alpaca AI Trading Ag
 Trades defined-risk multi-leg spreads on Alpaca paper trading, harvesting the variance risk
 premium. Deadline: **4 September 2026, 16:00 WAT**.
 
-Source of truth, in order: [DEFLOW_PROJECT_SPEC.md](DEFLOW_PROJECT_SPEC.md) →
-[README.md](README.md) → the code.
+Source of truth, in order: [DEFLOW_PROJECT_SPEC.md](DEFLOW_PROJECT_SPEC.md) ->
+[README.md](README.md) -> the code.
 
 ## Non-negotiable invariants
 
