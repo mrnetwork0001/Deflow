@@ -44,16 +44,22 @@ interface Decision {
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
-function extract(entries: LedgerEntry[]): Decision[] {
+/** Verdicts, newest first, joined to whether each one actually reached the
+ *  broker. `routed` used to be inferred from the next few ledger rows, which
+ *  only worked while the two events sat next to each other; the join is now by
+ *  proposal_id, which holds however far apart they land. */
+function extract(gates: LedgerEntry[], executions: LedgerEntry[]): Decision[] {
+  const routedIds = new Set(
+    executions
+      .filter((x) => x.payload?.submitted === true)
+      .map((x) => String(x.payload?.proposal_id ?? "")),
+  );
   const out: Decision[] = [];
-  for (let i = entries.length - 1; i >= 0 && out.length < MAX_SHOWN; i--) {
-    const e = entries[i];
-    if (e.event !== "risk_gate") continue;
+  for (let i = gates.length - 1; i >= 0 && out.length < MAX_SHOWN; i--) {
+    const e = gates[i];
     const p: Record<string, any> = e.payload ?? {};
     const load: Record<string, any> = p.payload ?? {};
-    const routed = entries
-      .slice(i + 1, i + 4)
-      .some((n) => n.event === "execution" && n.payload?.submitted === true);
+    const routed = routedIds.has(String(p.proposal_id ?? ""));
 
     out.push({
       key: `${e.seq}`,
@@ -121,8 +127,16 @@ export function DecisionCard() {
 
   const load = useCallback(async () => {
     try {
-      const page = await getJSON<{ entries: LedgerEntry[] }>("/api/ledger?limit=160");
-      const found = extract(page.entries ?? []);
+      // Ask for the two event types by name rather than skimming the tail.
+      // While the market is shut every cycle writes only cycle_start and
+      // market_closed, so after a few hours a plain tail contains no verdicts
+      // at all and the card sat on "standing by" all night and all weekend --
+      // on the landing page, which is the first thing anyone sees.
+      const [gates, execs] = await Promise.all([
+        getJSON<{ entries: LedgerEntry[] }>("/api/ledger?limit=40&event=risk_gate"),
+        getJSON<{ entries: LedgerEntry[] }>("/api/ledger?limit=60&event=execution"),
+      ]);
+      const found = extract(gates.entries ?? [], execs.entries ?? []);
       setDecisions(found);
       setState(found.length ? "ready" : "empty");
       setIndex((i) => (found.length ? i % found.length : 0));
