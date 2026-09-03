@@ -386,8 +386,48 @@ def test_flatten_waits_for_its_window(tmp_path, monkeypatch):
     assert all("MANDATE" not in r for _, r in pf.exits_due())
 
 
-def test_a_past_mandate_takes_any_profit(tmp_path, monkeypatch):
+def test_an_expired_mandate_returns_the_desk_to_normal(tmp_path, monkeypatch):
+    """A reporting deadline closes the books on a period; it does not close
+    the desk. Past the mandate the horizon imposes no urgency, nothing is
+    flattened, and a small winner is simply held -- otherwise the desk is a
+    dead exhibit on exactly the days someone comes to look at it."""
     from datetime import date, timedelta
-    _mandate(monkeypatch, (date.today() - timedelta(days=1)).isoformat(), flatten="23:59")
+    _mandate(monkeypatch, (date.today() - timedelta(days=1)).isoformat(), flatten="00:00")
     pf, pos = _book(tmp_path, monkeypatch, pnl=5.0)
+    assert pf.exits_due() == [], "an expired mandate must not keep liquidating"
+
+    # And the ordinary DTE-scaled target still governs: a real winner closes.
+    pos.unrealized_pnl = 0.95 * pos.max_profit
     assert len(pf.exits_due()) == 1
+
+
+
+def test_flatten_fires_only_on_the_final_day_not_after(tmp_path, monkeypatch):
+    from datetime import date, timedelta
+    # The day itself: flatten.
+    _mandate(monkeypatch, date.today().isoformat(), flatten="00:00")
+    pf, pos = _book(tmp_path, monkeypatch, pnl=-40.0)
+    assert any("MANDATE HORIZON" in r for _, r in pf.exits_due())
+
+    # The day after: nothing. A loser is held, not dumped.
+    _mandate(monkeypatch, (date.today() - timedelta(days=1)).isoformat(), flatten="00:00")
+    assert pf.exits_due() == []
+
+
+def test_entries_resume_after_the_mandate(tmp_path, monkeypatch):
+    """final_session gates new trades. It must be true on the last day and
+    false forever afterwards."""
+    import deflow.desk as dm
+    from datetime import date, timedelta
+    import deflow.portfolio as pm
+
+    monkeypatch.setattr(pm, "DATA_DIR", tmp_path)
+    pf = pm.Portfolio(DeterministicRiskGate(100_000.0), 100_000.0)
+
+    _mandate(monkeypatch, date.today().isoformat())
+    assert pf._mandate_days_left() == 0, "final session"
+
+    _mandate(monkeypatch, (date.today() - timedelta(days=3)).isoformat())
+    assert pf._mandate_days_left() == -3
+    # The desk's gate is `days_left == 0`, so -3 re-enables entries.
+    assert (pf._mandate_days_left() == 0) is False

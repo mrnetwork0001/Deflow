@@ -148,6 +148,8 @@ class TradingDesk:
         self.cycles = 0
         self.last_report: Optional[CycleReport] = None
         self._subscribers: List[Callable[[Dict[str, Any]], None]] = []
+        # Emitted once when the mandate period ends and normal trading resumes.
+        self._mandate_closed = False
         # proposal_id -> roll count, applied when the order fills.
         self._rolls_carried: Dict[str, int] = {}
 
@@ -187,8 +189,18 @@ class TradingDesk:
         # On the mandate's final session the desk manages and flattens; it
         # does not open. A 45-DTE spread entered eighty minutes before the
         # flatten donates the bid/ask twice and can never express its thesis.
+        #
+        # `== 0`, not `<= 0`: the day AFTER the mandate the desk resumes
+        # ordinary trading. A reporting deadline closes the books on a period;
+        # it does not close the desk.
         days_left = self.portfolio._mandate_days_left()
-        final_session = days_left is not None and days_left <= 0
+        final_session = days_left == 0
+        if days_left is not None and days_left < 0 and not self._mandate_closed:
+            self._mandate_closed = True
+            self._emit("mandate_complete", {
+                "mandate_end": self.settings.mandate_end,
+                "detail": "mandate period closed; the desk resumes ordinary trading",
+            })
 
         # Do nothing while the session is closed. Outside market hours the
         # option chain still returns quotes -- yesterday's, wide and stale --

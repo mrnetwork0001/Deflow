@@ -646,8 +646,15 @@ class Portfolio:
         return (end - date.today()).days
 
     def _mandate_flatten_now(self, days_left: Optional[int]) -> bool:
-        """True once the final session's flatten window has opened."""
-        if days_left is None or days_left > 0:
+        """True only during the final session's flatten window.
+
+        Deliberately `== 0`, not `<= 0`. The flatten is a one-day event that
+        converts marks into results before the deadline; treating every later
+        day as a flatten day would leave the desk permanently liquidating and
+        permanently unable to open -- a dead exhibit on exactly the days
+        someone is most likely to come and look at it.
+        """
+        if days_left != 0:
             return False
         try:
             hh, mm = SETTINGS.mandate_flatten_utc.split(":")

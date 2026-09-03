@@ -70,10 +70,15 @@ HORIZON_TARGETS = {2: 0.50, 1: 0.25, 0: 0.10}
 
 
 def horizon_target(days_to_mandate_end: int) -> float | None:
-    """Fraction of max profit worth holding for with this many days left."""
+    """Fraction of max profit worth holding for with this many days left.
+
+    None means the horizon imposes no extra urgency -- either the deadline is
+    still far away, or it has PASSED. A mandate that has expired is a mandate
+    that is over: the desk booked its results and goes back to work under the
+    ordinary DTE-scaled targets. It does not keep liquidating forever.
+    """
     if days_to_mandate_end < 0:
-        # Past the mandate: anything positive is worth taking.
-        return 0.0
+        return None
     return HORIZON_TARGETS.get(days_to_mandate_end)
 
 

@@ -38,6 +38,7 @@ first session of 2026-09-01.
 - [Architecture](#architecture)
 - [The risk gate](#the-risk-gate)
 - [Order and exit lifecycle](#order-and-exit-lifecycle)
+- [The mandate horizon](#the-mandate-horizon)
 - [Honest numbers](#honest-numbers)
 - [Alpaca integration](#alpaca-integration)
 - [Quickstart](#quickstart)
@@ -283,6 +284,28 @@ engineered on both sides of a position:
 - **A suspect mark cannot fire an exit.** A quote that prices a spread outside its own payoff
   bounds is bad data by definition; it is clamped, flagged, and deferred one cycle rather than
   allowed to realise a phantom stop at the open.
+
+---
+
+## The mandate horizon
+
+Deflow can be told when its mandate ends (`DEFLOW_MANDATE_END`), and a desk with
+a known reporting date should manage toward it. Unrealised P&L on a 45-day spread
+the day a period closes is a provisional mark, and a mark is not a result.
+
+- **Approaching it** - profit targets tighten: two sessions out, 50% of max profit
+  is enough; one session, 25%; the final session, 10%. Whichever of the DTE target
+  and the horizon target is lower wins.
+- **On the day** - the desk opens nothing, and from `DEFLOW_MANDATE_FLATTEN_UTC`
+  it flattens every position at its current mark, winners and losers alike,
+  retried by the exit reconciler until filled.
+- **After it** - the mandate has simply expired. Ordinary trading resumes under
+  the normal DTE-scaled targets, and the desk emits `mandate_complete` to the
+  ledger once. **A reporting deadline closes the books on a period; it does not
+  close the desk.** Anyone arriving after the date still finds a live desk
+  trading, with the closed period preserved and verifiable in the ledger.
+
+Unset, none of this applies and the desk is open-ended.
 
 ---
 
