@@ -1,159 +1,115 @@
-# Deflow — Build-in-Public Posts
+# Deflow - Build-in-Public Posts
 
-## Submission tracker
+The record of what was actually posted while the desk traded, for the lablab.ai x Alpaca
+social-engagement track. Tag **@lablabai** and **@AlpacaHQ** on X.
 
-Up to 5 links go with the final submission.
+## What was posted
 
 | # | Day | Post | Link | Submitted |
 |---|-----|------|------|-----------|
-| 1 | Tue 1 Sep | The thesis (no name, no strategy) | https://x.com/encrypt_wizard/status/2094702482274312352 | slot 1 |
-| 2 | Wed 2 Sep | Day-1 autopsy thread: fill asymmetry, flattering dashboard, the edge that said no | https://x.com/encrypt_wizard/status/2094968034544738620 | slot 2 |
-| 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders | https://x.com/encrypt_wizard/status/2095242422645362921 | slot 3 |
-| 4 | Thu 3 Sep | Day 3: the measurement beat the thesis, bugs fixed in public, the flatten pre-announced | https://x.com/encrypt_wizard/status/2095351339077234808 | — |
-| 5 | Thu 3 Sep | First exits ever fired: 3 closed, 3 winners, $2,273.18 realised | https://x.com/encrypt_wizard/status/2095607829566832847 | slot 4 |
-| 6 | Fri 4 Sep | Launch thread: final result + demo video | _pending the flatten_ | slot 5 |
+| 1 | Tue 1 Sep | The thesis - the model must not size the trade. Named neither the project nor the strategy | [link](https://x.com/encrypt_wizard/status/2094702482274312352) | slot 1 |
+| 2 | Wed 2 Sep | Day-1 autopsy thread: the fill asymmetry, the flattering dashboard, the edge that said no | [link](https://x.com/encrypt_wizard/status/2094968034544738620) | slot 2 |
+| 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders placed | [link](https://x.com/encrypt_wizard/status/2095242422645362921) | slot 3 |
+| 4 | Thu 3 Sep | Day 3: the measurement beat the thesis, three bugs fixed in public, the flatten pre-announced | [link](https://x.com/encrypt_wizard/status/2095351339077234808) | - |
+| 5 | Thu 3 Sep | First exits ever fired: 3 closed, 3 winners, $2,273.18 realised. Quotes post 4 | [link](https://x.com/encrypt_wizard/status/2095607829566832847) | slot 4 |
+| 6 | Fri 4 Sep | Launch thread: final result and the demo video | pending the flatten | slot 5 |
 
-Six posts, five slots. See the note below on which five to submit.
+Six posts, five submission slots. Post 4 is not submitted directly because post 5 quotes it -
+the flatten promise a judge follows from the launch thread is one click away either way.
 
-
-**Reveal schedule.** Post 1 named neither the project nor the strategy — deliberately, with 40+
-teams competing. The name, the architecture and the variance-premium thesis go public on **Day 3**,
-once there are trades on the tape to point at. Posts 2–5 below assume that.
+**The reveal was staged deliberately.** Post 1 named neither the project nor the strategy,
+with 40+ teams competing at the time. The name, the architecture and the variance-premium
+thesis went public on day 3, once there were trades on the tape to point at.
 
 ---
 
-For the lablab.ai × Alpaca social engagement prize. Tag **@lablabai** and **@AlpacaHQ** on X, and
-**lablab.ai** and **Alpaca** on LinkedIn.
+## The ground rule
 
-> **Ground rule for this file: nothing here claims a number that has not happened.**
+> **No post claims a number that has not happened.**
 >
-> Posts 1–3 and 5 describe real events from building this system — the bugs are real bugs, with
-> commits behind them. Post 4 is the only one containing performance figures, and it is a
-> **template**: run `python scripts/social_post.py` to fill it from the actual hash-chained
-> ledger. Do not post it with the brackets still in it, and do not hand-write the numbers.
+> Every figure published came from the broker or from the hash-chained ledger at the moment
+> of posting - never estimated, never rounded up, never hand-written. `scripts/social_post.py`
+> exists to fill a results post from the live ledger for exactly this reason.
 >
 > Judging is on real P&L in a fresh Alpaca paper account. Inventing results in public is both
-> disqualifying and the exact failure mode this project was built to prevent.
+> disqualifying and the exact failure mode this project was built to prevent. Day one closed
+> at **-$101.50** and was posted as such, in full, the same evening.
 
 ---
 
-### Post 1 — The thesis
+## The launch thread (day 4)
+
+Posted after the mandate flatten completes, so every figure in it is settled rather than
+marked. Placeholders in brackets are filled from the dashboard and the ledger at posting time.
+
+**1/4 - result, with the demo video attached**
 
 ```text
-Most AI trading agents fail the same way: the model picks the trade AND sizes it.
+7 days. One autonomous options desk. It's done.
 
-Building DEFLOW for the @lablabai × @AlpacaHQ hackathon on one inverted principle —
-the LLM is the least-trusted component in the system.
+Deflow traded a live Alpaca paper account unattended all week for the
+@lablabai x @AlpacaHQ hackathon - four AI agents proposing, twelve
+deterministic breakers deciding, Qwen2.5-72B on @FeatherlessAI doing the
+reasoning. No model ever touched capital.
 
-It never produces a number that reaches the broker. Strikes, premiums, Greeks and
-position size are all computed from live Alpaca quotes by deterministic code.
+Final: [+X.XX%]. [N] round trips, [N] winners, all settled before the deadline.
 
-The model gets exactly one output: an integer index into a list of spreads it
-did not build. And that index is bounds-checked.
-
-Building in public. 🧵
-
-#AITrading #Options #Alpaca #lablabai
+Three minutes on how it works.
 ```
 
-### Post 2 — Why probability of profit is a trap
+**2/4 - the receipts**
 
 ```text
-A lesson from building DEFLOW on @AlpacaHQ:
+Every number, session by session, from the broker - not from my own marks:
 
-Found a credit spread with a 79% probability of profit.
-Ran it through 1,000 paths of Merton jump-diffusion.
+Mon  -$101.50    the day the bugs surfaced
+Tue  +$1,282.53  zero orders placed; it just let winners run
+Wed  +$792.15    first three exits ever fired. 3 for 3.
+Thu  [flatten]   everything closed, on schedule
 
-Expected value: NEGATIVE.
+But the number I care about: it refused to trade [N] times.
 
-79% of the time you keep $320. The other 21% you lose $1,680. The losing tail is
-bigger than all the wins combined.
+[N] round trips out of [N] refusals. That ratio IS the product. A desk that
+must trade every cycle is a random number generator with commissions.
 
-A high win rate is not an edge. It's a way to lose money slowly and feel good
-about it. DEFLOW's auditor now vetoes any structure with negative expectancy
-regardless of win rate.
-
-@lablabai #QuantFinance #Options #RiskManagement
+All [N] decisions are on a hash-chained ledger you can verify yourself.
 ```
 
-### Post 3 — Two real bugs
+**3/4 - what actually went wrong**
 
 ```text
-Two bugs I hit building DEFLOW on @AlpacaHQ, both caught by tests, both worth sharing:
+Things I shipped this week that were broken, found live, and fixed in public:
 
-1️⃣ My implied-vol solver used (K−S)·e^(−rT) as the no-arbitrage floor for puts.
-The real European bound is K·e^(−rT) − S. Every in-the-money put quote landed
-under the wrong floor and got rejected as "no market". Silent. Only showed up
-against a parity test.
+- A stop-loss that could only close winners. Exits were priced off the entry
+  price, so a losing position's close order was unfillable by construction.
+  The one order it existed to send.
 
-2️⃣ Mark-to-market fell back to Black-Scholes at the ENTRY underlying price when a
-leg's quote dropped out. So the leg most likely to have moved was frozen at what
-it was worth on day one. It reported +$1,051 on a spread whose max profit is $369.
+- A dashboard flattering me by $476, because it marked at the mid while the
+  broker marked at liquidation.
 
-Defined-risk spreads have hard payoff bounds. I now clamp every mark to them and
-flag it, because an unclamped bad mark fires your stop-loss at a price that never
-existed.
+- A daily kill-switch whose baseline silently never rolled - found by reading
+  a competitor's build-in-public thread about their own bug.
 
-@lablabai #BuildInPublic #TradingSystems
+- A mandate that would have frozen the desk permanently after the deadline.
+  Caught by someone asking a simple question I hadn't.
+
+None of that is in the demo video. It's the actual week.
 ```
 
-### Post 4 — Results *(TEMPLATE — generate, never hand-write)*
+**4/4 - what happens now**
 
 ```text
-DEFLOW live on a fresh $100,000 @AlpacaHQ paper account.
+24 hours ago I posted that Deflow would flatten its entire book today at
+15:00 WAT. It did - [N] positions, on schedule, on the record. Unrealised
+profit on the day a mandate ends is a mark, and a mark is not a result.
 
-Every one of these numbers comes from a SHA-256 hash-chained decision ledger.
-Change any historical entry and the chain breaks — /api/ledger/verify tells you
-exactly where.
+But the books closing isn't the desk closing. The mandate expires, ordinary
+trading resumes, and it's back at work tomorrow morning. Anyone checking next
+week finds a live desk, not a screenshot.
 
-📊 Equity: {equity}
-📈 P&L: {total_pnl} ({return_pct})
-🎯 Closed: {closed} trades · {win_rate} win rate · profit factor {profit_factor}
-🛡️ {vetoes} trades vetoed by the deterministic risk gate
-⚡ Gate latency: {gate_us} µs per 12-breaker evaluation
-📓 {ledger_entries} decisions logged · chain {chain_status}
+Open source, MIT - including the limitations I couldn't fix in time,
+written down.
 
-100% defined-risk spreads. Max 2% of equity at risk per trade.
-
-@lablabai #AlgoTrading #Alpaca #AITrading
+Built solo, in public, bugs posted as loudly as the wins.
+Thanks @lablabai @AlpacaHQ @FeatherlessAI
 ```
-
-Generate the filled version:
-
-```bash
-python scripts/social_post.py
-```
-
-### Post 5 — Ship
-
-```text
-DEFLOW is shipped for the @lablabai × @AlpacaHQ AI Trading Agents Hackathon 🏁
-
-An autonomous options desk that trades the variance risk premium — the gap between
-the volatility options are priced at and the volatility stocks actually deliver.
-
-✅ 4 agents: analyst → structurer → adversarial auditor → executor
-✅ 12 deterministic circuit breakers, zero LLM, microseconds, fail-closed
-✅ Alpaca Trading API + official CLI (mleg orders) + FastMCP server
-✅ Every decision hash-chained and independently verifiable
-✅ Refusals logged as loudly as fills
-✅ One command from a bare clone: python main.py
-
-The most useful thing it does is refuse. Roughly half of all symbol-cycles end in
-no trade — each one logged with the numbers that produced it.
-
-Repo + demo 👇 MIT licensed.
-
-#AITrading #Options #Alpaca #lablabai
-```
-
----
-
-## Posting notes
-
-- Post 3 works best as a carousel or thread — the parity identity and the clamped-mark screenshot
-  are the shareable part.
-- Screenshot `python main.py --demo` for post 1: the twelve breaker lines with real numbers beside
-  them are the single most legible artefact this project produces.
-- For post 4, screenshot the dashboard header — mode badge, equity, and the ledger chain-status
-  badge in one frame.
