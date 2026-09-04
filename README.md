@@ -1,5 +1,8 @@
 # Deflow - Autonomous Multi-Agent Options Desk
 
+<img width="1497" height="859" alt="Screenshot 2026-09-04 at 10 04 21" src="https://github.com/user-attachments/assets/dc39c296-2df3-416d-8f47-2a7375e36494" />
+
+
 > Built for the **lablab.ai × Alpaca AI Trading Agents Hackathon** (28 Aug - 4 Sep 2026)
 > Four agents propose. Twelve deterministic breakers decide. No model touches capital.
 
