@@ -487,17 +487,22 @@ The hackathon's social-engagement track: one post a day while the desk trades, t
 **no post claims a number that has not happened** - the results post is generated from the
 hash-chained ledger, not hand-written.
 
-| # | Day | Topic | Status |
-|---|-----|-------|--------|
+| # | Day | Topic | Link |
+|---|-----|-------|------|
 | 1 | Tue 1 Sep | The thesis - why the model must not size the trade | [posted](https://x.com/encrypt_wizard/status/2094702482274312352) |
-| 2 | Wed 2 Sep | Day-1 results thread: the fill asymmetry, the flattering dashboard, the edge that said no | [posted](https://x.com/encrypt_wizard/status/2094968034544738620) |
-| 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders, quoting the autopsy | [posted](https://x.com/encrypt_wizard/status/2095242422645362921) |
-| 4 | Wed 3 Sep | Why the profit happened, the bugs fixed in public, and the pre-announced retirement | [posted](https://x.com/encrypt_wizard/status/2095351339077234808) |
-| 5 | Fri 4 Sep | Ship + reveal | planned |
+| 2 | Wed 2 Sep | Day-1 autopsy thread: the fill asymmetry, the flattering dashboard, the edge that said no | [posted](https://x.com/encrypt_wizard/status/2094968034544738620) |
+| 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders placed | [posted](https://x.com/encrypt_wizard/status/2095242422645362921) |
+| 4 | Thu 3 Sep | Day 3: the measurement beat the thesis, three bugs fixed in public, the flatten pre-announced | [posted](https://x.com/encrypt_wizard/status/2095351339077234808) |
+| 5 | Thu 3 Sep | First exits ever fired: 3 closed, 3 winners, $2,273.18 realised - quoting Day 3 | [posted](https://x.com/encrypt_wizard/status/2095607829566832847) |
+| 6 | Fri 4 Sep | Launch thread: final result and the demo video | pending the flatten |
 
-Post 1 deliberately named neither the project nor the strategy; the reveal waits until there
-are live trades to point at, and the results post is the one post that may carry performance
-figures - generated from the ledger, never hand-written.
+Six posts, five submission slots. Posts 1, 2, 3, 5 and 6 go in; post 4 is reachable inside
+post 5, which quotes it - so the flatten promise a judge follows from the launch thread is
+one click away either way.
+
+Post 1 deliberately named neither the project nor the strategy; the reveal waited until there
+were live trades to point at. Post 5 is the first to carry performance figures, and they come
+from the hash-chained ledger rather than being hand-written.
 
 ---
 
