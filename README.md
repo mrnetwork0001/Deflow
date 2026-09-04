@@ -494,7 +494,7 @@ hash-chained ledger, not hand-written.
 | 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders placed | [posted](https://x.com/encrypt_wizard/status/2095242422645362921) |
 | 4 | Thu 3 Sep | Day 3: the measurement beat the thesis, three bugs fixed in public, the flatten pre-announced | [posted](https://x.com/encrypt_wizard/status/2095351339077234808) |
 | 5 | Thu 3 Sep | First exits ever fired: 3 closed, 3 winners, $2,273.18 realised - quoting Day 3 | [posted](https://x.com/encrypt_wizard/status/2095607829566832847) |
-| 6 | Fri 4 Sep | Launch thread: final result and the demo video | pending the flatten |
+| 6 | Fri 4 Sep | Launch thread: final result and the demo video | [posted](https://x.com/encrypt_wizard/status/2095878141625434495) |
 
 Six posts, five submission slots. Posts 1, 2, 3, 5 and 6 go in; post 4 is reachable inside
 post 5, which quotes it - so the flatten promise a judge follows from the launch thread is

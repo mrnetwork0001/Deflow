@@ -12,7 +12,7 @@ social-engagement track. Tag **@lablabai** and **@AlpacaHQ** on X.
 | 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders placed | [link](https://x.com/encrypt_wizard/status/2095242422645362921) | slot 3 |
 | 4 | Thu 3 Sep | Day 3: the measurement beat the thesis, three bugs fixed in public, the flatten pre-announced | [link](https://x.com/encrypt_wizard/status/2095351339077234808) | - |
 | 5 | Thu 3 Sep | First exits ever fired: 3 closed, 3 winners, $2,273.18 realised. Quotes post 4 | [link](https://x.com/encrypt_wizard/status/2095607829566832847) | slot 4 |
-| 6 | Fri 4 Sep | Launch thread: final result and the demo video | pending the flatten | slot 5 |
+| 6 | Fri 4 Sep | Launch thread: final result and the demo video | [link](https://x.com/encrypt_wizard/status/2095878141625434495) | slot 5 |
 
 Six posts, five submission slots. Post 4 is not submitted directly because post 5 quotes it -
 the flatten promise a judge follows from the launch thread is one click away either way.
