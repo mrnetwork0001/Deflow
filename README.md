@@ -205,9 +205,7 @@ and the same book it returns the same verdict, forever.
 | 1 | `defined_risk_structure` | Multi-leg only; every short covered by a long of the same right |
 | 2 | `max_loss_2pct` | ≤ 2% of equity per trade ($2,000 on $100k) |
 | 3 | `trade_delta_bound` | \|net delta\| ≤ 0.35 per contract-equivalent |
-| 4 | `probability_of_profit` | Credit: ≥ 65% simulated win rate · debit: ≥ 30% **and** positive expectancy |
-| 5 | `aggregate_risk_6pct` | ≤ 6% of equity at risk across the book, working orders included |
-| 6 | `symbol_concentration_3pct` | ≤ 3% of equity in any one underlying |
+| 4 | Thu 3 Sep | The measurement beat the thesis; bugs fixed in public; the flatten pre-announced | [posted](https://x.com/encrypt_wizard/status/2095351339077234808) | 5 | Thu 3 Sep | First exits ever fired: 3 closed, 3 winners, $2,273.18 realised | [posted](https://x.com/encrypt_wizard/status/2095607829566832847) | 6 | `symbol_concentration_3pct` | ≤ 3% of equity in any one underlying |
 | 7 | `portfolio_delta_bound` | Book \|delta\| ≤ 1.20 |
 | 8 | `max_open_positions` | ≤ 6 |
 | 9 | `dte_window` | 7-60 days |

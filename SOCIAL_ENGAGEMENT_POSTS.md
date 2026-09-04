@@ -4,13 +4,17 @@
 
 Up to 5 links go with the final submission.
 
-| # | Day | Status | Link |
-|---|-----|--------|------|
-| 1 | Tue 1 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2094702482274312352 |
-| 2 | Wed 2 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2094968034544738620 |
-| 3 | Wed 2 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2095242422645362921 |
-| 4 | Wed 3 Sep | ✅ posted | https://x.com/encrypt_wizard/status/2095351339077234808 |
-| 5 | Fri 4 Sep | — | _ship + reveal_ |
+| # | Day | Post | Link | Submitted |
+|---|-----|------|------|-----------|
+| 1 | Tue 1 Sep | The thesis (no name, no strategy) | https://x.com/encrypt_wizard/status/2094702482274312352 | slot 1 |
+| 2 | Wed 2 Sep | Day-1 autopsy thread: fill asymmetry, flattering dashboard, the edge that said no | https://x.com/encrypt_wizard/status/2094968034544738620 | slot 2 |
+| 3 | Wed 2 Sep | Session 2 settled: +$1,102 with zero orders | https://x.com/encrypt_wizard/status/2095242422645362921 | slot 3 |
+| 4 | Thu 3 Sep | Day 3: the measurement beat the thesis, bugs fixed in public, the flatten pre-announced | https://x.com/encrypt_wizard/status/2095351339077234808 | — |
+| 5 | Thu 3 Sep | First exits ever fired: 3 closed, 3 winners, $2,273.18 realised | https://x.com/encrypt_wizard/status/2095607829566832847 | slot 4 |
+| 6 | Fri 4 Sep | Launch thread: final result + demo video | _pending the flatten_ | slot 5 |
+
+Six posts, five slots. See the note below on which five to submit.
+
 
 **Reveal schedule.** Post 1 named neither the project nor the strategy — deliberately, with 40+
 teams competing. The name, the architecture and the variance-premium thesis go public on **Day 3**,
